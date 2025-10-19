@@ -143,7 +143,7 @@ export const translations = {
     hero: {
       title: "Wise Aim Revolution",
       subtitle:
-        "Serlahkan potensi anda. Kuasai seni memanah dengan kelab memanah utama Kuala Lumpur.",
+        "Berwibawa - Berdaya Saing - Berinovasi",
       cta: "Jadi Ahli",
     },
     about: {
