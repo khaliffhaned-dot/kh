@@ -16,7 +16,7 @@ export function AboutSection() {
             <p className="mt-4 text-gray-300">
               Wise Aim Revolution Archery Club (WARAC) is more than just a
               range; it's a community dedicated to the timeless sport of
-              archery. Founded in 2020 in the heart of Kuala Lumpur, our
+              archery. Founded in 2025 in the heart of Kuala Lumpur, our
               mission is to provide a safe, welcoming, and professional
               environment for archers of all ages and skill levels.
             </p>
