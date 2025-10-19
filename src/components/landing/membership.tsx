@@ -103,10 +103,20 @@ export function MembershipSection() {
               <div
                 key={plan.name}
                 className={cn(
-                  "bg-secondary/80 p-8 rounded-2xl border-2 border-transparent flex flex-col hover:border-primary transition-all duration-300 backdrop-blur-sm",
+                  "bg-secondary/80 p-8 rounded-2xl border-2 border-transparent flex flex-col hover:border-primary transition-all duration-300 backdrop-blur-sm relative",
                   plan.popular && "border-primary scale-105 shadow-2xl shadow-primary/10"
                 )}
               >
+                {plan.popular && (
+                  <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2">
+                    <div className="relative">
+                      <div className="absolute -inset-0.5 bg-gradient-to-r from-yellow-400 to-amber-600 rounded-full blur opacity-75 animate-pulse-slow"></div>
+                      <div className="relative bg-primary text-primary-foreground px-4 py-1.5 text-sm font-bold rounded-full">
+                        {t.mostPopular}
+                      </div>
+                    </div>
+                  </div>
+                )}
                 <div className="flex-grow">
                   <h3 className="font-headline text-4xl font-medium text-primary">
                     {plan.name}
