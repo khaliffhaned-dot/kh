@@ -41,8 +41,8 @@ export const translations = {
             "Personal Locker",
           ],
         },
-        bullseye: {
-          name: "Bullseye",
+        warionWiser: {
+          name: "WARion Wiser",
           description: "For the dedicated archer",
           features: [
             "20 Hours Range Access",
@@ -172,8 +172,8 @@ export const translations = {
             "Loker Peribadi",
           ],
         },
-        bullseye: {
-          name: "Bullseye",
+        warionWiser: {
+          name: "WARion Wiser",
           description: "Untuk pemanah yang berdedikasi",
           features: [
             "Akses Lapangan 20 Jam",
