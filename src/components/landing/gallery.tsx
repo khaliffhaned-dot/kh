@@ -1,10 +1,15 @@
 import { PlaceHolderImages } from "@/lib/placeholder-images";
 import Image from "next/image";
+import { useLanguage } from "@/context/language-context";
+import { translations } from "@/lib/translations";
 
 export function GallerySection() {
   const galleryImages = PlaceHolderImages.filter((img) =>
     img.id.startsWith("gallery-")
   );
+  
+  const { language } = useLanguage();
+  const t = translations[language].gallery;
 
   const imageCols = [
     [galleryImages[0], galleryImages[1]],
@@ -18,10 +23,10 @@ export function GallerySection() {
       <div className="container mx-auto px-6">
         <div className="text-center mb-16">
           <h2 className="font-headline text-5xl md:text-6xl font-semibold text-white">
-            Our Community in Action
+            {t.title}
           </h2>
           <p className="mt-2 text-gray-300 max-w-2xl mx-auto">
-            Capturing the focus, dedication, and fun at WARAC.
+            {t.subtitle}
           </p>
         </div>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">

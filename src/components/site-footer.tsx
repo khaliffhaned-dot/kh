@@ -1,7 +1,14 @@
+"use client";
+
+import { useLanguage } from "@/context/language-context";
+import { translations } from "@/lib/translations";
 import { Facebook, Instagram, Twitter } from "lucide-react";
 import Link from "next/link";
 
 export function SiteFooter() {
+  const { language } = useLanguage();
+  const t = translations[language].footer;
+
   return (
     <footer className="bg-card py-12">
       <div className="container mx-auto px-6 text-center text-muted-foreground">
@@ -23,8 +30,7 @@ export function SiteFooter() {
           </Link>
         </div>
         <p className="mt-6 text-sm">
-          &copy; {new Date().getFullYear()} Wise Aim Revolution Archery Club. All
-          Rights Reserved.
+          &copy; {new Date().getFullYear()} {t.copyright}
         </p>
       </div>
     </footer>

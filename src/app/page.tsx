@@ -1,3 +1,5 @@
+"use client";
+
 import { AboutSection } from "@/components/landing/about";
 import { ContactSection } from "@/components/landing/contact";
 import { GallerySection } from "@/components/landing/gallery";

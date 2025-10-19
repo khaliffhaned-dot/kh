@@ -7,20 +7,25 @@ import { Button } from "./ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "./ui/sheet";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
-
-const navLinks = [
-  { href: "#about", label: "About" },
-  { href: "#membership", label: "Membership" },
-  { href: "#gallery", label: "Gallery" },
-  { href: "#contact", label: "Contact" },
-  { href: "/training", label: "Training Hub" },
-];
+import { useLanguage } from "@/context/language-context";
+import { translations } from "@/lib/translations";
+import { LanguageSwitcher } from "./language-switcher";
 
 export function SiteHeader() {
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const pathname = usePathname();
   const isHomePage = pathname === "/";
+  const { language } = useLanguage();
+  const t = translations[language].nav;
+
+  const navLinks = [
+    { href: "#about", label: t.about },
+    { href: "#membership", label: t.membership },
+    { href: "#gallery", label: t.gallery },
+    { href: "#contact", label: t.contact },
+    { href: "/training", label: t.trainingHub },
+  ];
 
   useEffect(() => {
     const handleScroll = () => {
@@ -73,12 +78,14 @@ export function SiteHeader() {
               <NavLink key={link.href} {...link} />
             ))}
           </nav>
-          <div className="hidden md:block">
+          <div className="hidden md:flex items-center gap-2">
+            <LanguageSwitcher />
             <Button asChild className="font-bold rounded-lg transform hover:scale-105 transition-transform duration-300 text-sm">
-                <a href="#membership">Join Now</a>
+                <a href="#membership">{t.joinNow}</a>
             </Button>
           </div>
-          <div className="md:hidden">
+          <div className="md:hidden flex items-center gap-2">
+            <LanguageSwitcher />
             <Sheet open={isMobileMenuOpen} onOpenChange={setIsMobileMenuOpen}>
               <SheetTrigger asChild>
                 <Button variant="ghost" size="icon">
@@ -91,7 +98,7 @@ export function SiteHeader() {
                         <NavLink key={link.href} {...link} />
                     ))}
                      <Button asChild className="font-bold rounded-lg w-full text-center mt-2">
-                        <a href="#membership" onClick={() => setIsMobileMenuOpen(false)}>Join Now</a>
+                        <a href="#membership" onClick={() => setIsMobileMenuOpen(false)}>{t.joinNow}</a>
                     </Button>
                 </div>
               </SheetContent>

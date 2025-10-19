@@ -23,8 +23,10 @@ import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Check, Info, Loader2, X } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useLanguage } from "@/context/language-context";
+import { translations } from "@/lib/translations";
 
-const paymentSchema = z.object({
+const paymentSchemaEn = z.object({
   cardName: z.string().min(1, "Name on card is required"),
   cardNumber: z
     .string()
@@ -35,6 +37,19 @@ const paymentSchema = z.object({
     .regex(/^(0[1-9]|1[0-2])\/\d{2}$/, "Invalid expiry date (MM/YY)"),
   cvc: z.string().length(3, "CVC must be 3 digits"),
 });
+
+const paymentSchemaMy = z.object({
+  cardName: z.string().min(1, "Nama pada kad diperlukan"),
+  cardNumber: z
+    .string()
+    .min(19, "Nombor kad tidak sah")
+    .max(19, "Nombor kad tidak sah"),
+  expiryDate: z
+    .string()
+    .regex(/^(0[1-9]|1[0-2])\/\d{2}$/, "Tarikh luput tidak sah (BB/TT)"),
+  cvc: z.string().length(3, "CVC mesti 3 digit"),
+});
+
 
 type Plan = {
   name: string;
@@ -50,6 +65,10 @@ interface PaymentModalProps {
 export function PaymentModal({ plan, isOpen, onClose }: PaymentModalProps) {
   const [isProcessing, setIsProcessing] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
+  const { language } = useLanguage();
+  const t = translations[language].payment;
+  
+  const paymentSchema = language === "en" ? paymentSchemaEn : paymentSchemaMy;
 
   const form = useForm<z.infer<typeof paymentSchema>>({
     resolver: zodResolver(paymentSchema),
@@ -107,7 +126,7 @@ export function PaymentModal({ plan, isOpen, onClose }: PaymentModalProps) {
           <>
             <DialogHeader>
               <DialogTitle className="font-headline text-3xl text-white flex justify-between items-center">
-                Complete Your Membership
+                {t.title}
                 <Button variant="ghost" size="icon" onClick={handleClose} className="text-gray-300 hover:text-white">
                   <X className="w-6 h-6" />
                 </Button>
@@ -115,17 +134,17 @@ export function PaymentModal({ plan, isOpen, onClose }: PaymentModalProps) {
             </DialogHeader>
             <div>
               <p className="text-gray-300 mb-2">
-                You have selected the{" "}
-                <span className="font-bold text-primary">{plan.name}</span> plan.
+                {t.planSelectedPrefix}{" "}
+                <span className="font-bold text-primary">{plan.name}</span>.
               </p>
               <p className="text-2xl font-bold text-white mb-6">
-                Total: RM {plan.price}
+                {t.total}: RM {plan.price}
               </p>
               <Alert className="bg-accent/20 border-accent/50 text-accent-foreground mb-4">
                 <Info className="h-4 w-4" />
-                <AlertTitle>Demo Only</AlertTitle>
+                <AlertTitle>{t.demoTitle}</AlertTitle>
                 <AlertDescription>
-                  No real payment will be processed. You can use fake card details.
+                  {t.demoDesc}
                 </AlertDescription>
               </Alert>
 
@@ -139,7 +158,7 @@ export function PaymentModal({ plan, isOpen, onClose }: PaymentModalProps) {
                     name="cardName"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Name on Card</FormLabel>
+                        <FormLabel>{t.cardNameLabel}</FormLabel>
                         <FormControl>
                           <Input {...field} />
                         </FormControl>
@@ -152,7 +171,7 @@ export function PaymentModal({ plan, isOpen, onClose }: PaymentModalProps) {
                     name="cardNumber"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Card Number</FormLabel>
+                        <FormLabel>{t.cardNumberLabel}</FormLabel>
                         <FormControl>
                           <Input {...field} placeholder="0000 0000 0000 0000" onChange={handleCardNumberChange}/>
                         </FormControl>
@@ -166,9 +185,9 @@ export function PaymentModal({ plan, isOpen, onClose }: PaymentModalProps) {
                       name="expiryDate"
                       render={({ field }) => (
                         <FormItem className="w-1/2">
-                          <FormLabel>Expiry Date</FormLabel>
+                          <FormLabel>{t.expiryDateLabel}</FormLabel>
                           <FormControl>
-                            <Input {...field} placeholder="MM/YY" onChange={handleExpiryDateChange} />
+                            <Input {...field} placeholder={language === 'en' ? 'MM/YY' : 'BB/TT'} onChange={handleExpiryDateChange} />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -192,10 +211,10 @@ export function PaymentModal({ plan, isOpen, onClose }: PaymentModalProps) {
                     {isProcessing ? (
                       <>
                         <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Processing...
+                        {t.processing}...
                       </>
                     ) : (
-                      "Pay Now"
+                      t.payNow
                     )}
                   </Button>
                 </form>
@@ -208,13 +227,13 @@ export function PaymentModal({ plan, isOpen, onClose }: PaymentModalProps) {
               <Check className="w-10 h-10 text-white" />
             </div>
             <h2 className="font-headline text-3xl text-white mt-4">
-              Payment Successful!
+              {t.successTitle}
             </h2>
             <p className="text-gray-200 mt-2">
-              Welcome to WARAC! You'll receive a confirmation email shortly.
+              {t.successDesc}
             </p>
             <Button onClick={handleClose} variant="outline" className="w-full mt-6 border-primary text-primary hover:bg-primary hover:text-primary-foreground font-bold">
-              Close
+              {t.closeButton}
             </Button>
           </div>
         )}

@@ -4,6 +4,7 @@ import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
 import { cn } from "@/lib/utils";
 import "./globals.css";
+import { LanguageProvider } from "@/context/language-context";
 
 export const metadata: Metadata = {
   title: "WARAC Hub",
@@ -27,10 +28,12 @@ export default function RootLayout({
           "min-h-screen bg-background font-body antialiased"
         )}
       >
-        <SiteHeader />
-        <main className="flex-1">{children}</main>
-        <SiteFooter />
-        <Toaster />
+        <LanguageProvider>
+          <SiteHeader />
+          <main className="flex-1">{children}</main>
+          <SiteFooter />
+          <Toaster />
+        </LanguageProvider>
       </body>
     </html>
   );

@@ -22,6 +22,8 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { Dumbbell, Loader2, Target, Trophy } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "../ui/alert";
+import { useLanguage } from "@/context/language-context";
+import { translations } from "@/lib/translations";
 
 const initialState = {
   schedule: "",
@@ -33,16 +35,18 @@ export function TrainingForm() {
     generateTrainingScheduleAction,
     initialState
   );
+  const { language } = useLanguage();
+  const t = translations[language].training;
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-6xl mx-auto">
       <Card className="bg-secondary border-border">
         <CardHeader>
           <CardTitle className="font-headline text-3xl">
-            Your Training Input
+            {t.inputTitle}
           </CardTitle>
           <CardDescription>
-            Provide your current status and goals.
+            {t.inputDescription}
           </CardDescription>
         </CardHeader>
         <form action={formAction}>
@@ -50,28 +54,28 @@ export function TrainingForm() {
             <div className="space-y-2">
               <Label htmlFor="skillLevel" className="flex items-center gap-2">
                 <Dumbbell className="w-4 h-4 text-primary" />
-                Skill Level
+                {t.skillLevel}
               </Label>
               <Select name="skillLevel" required>
                 <SelectTrigger id="skillLevel" className="w-full">
-                  <SelectValue placeholder="Select your skill level" />
+                  <SelectValue placeholder={t.skillLevelPlaceholder} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="beginner">Beginner</SelectItem>
-                  <SelectItem value="intermediate">Intermediate</SelectItem>
-                  <SelectItem value="advanced">Advanced</SelectItem>
+                  <SelectItem value="beginner">{t.skillLevels.beginner}</SelectItem>
+                  <SelectItem value="intermediate">{t.skillLevels.intermediate}</SelectItem>
+                  <SelectItem value="advanced">{t.skillLevels.advanced}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
             <div className="space-y-2">
               <Label htmlFor="goals" className="flex items-center gap-2">
                 <Trophy className="w-4 h-4 text-primary" />
-                Training Goals
+                {t.goals}
               </Label>
               <Textarea
                 id="goals"
                 name="goals"
-                placeholder="e.g., Improve accuracy at 50m, prepare for a competition in 3 months, master a consistent release."
+                placeholder={t.goalsPlaceholder}
                 required
                 rows={4}
               />
@@ -79,12 +83,12 @@ export function TrainingForm() {
             <div className="space-y-2">
               <Label htmlFor="historicalData" className="flex items-center gap-2">
                 <Target className="w-4 h-4 text-primary" />
-                Historical Performance
+                {t.historicalPerformance}
               </Label>
               <Textarea
                 id="historicalData"
                 name="historicalData"
-                placeholder="e.g., 'Last 5 sessions: Average score of 7.5 at 30m. Struggle with grouping arrows on the left.' or 'New archer, completed 2 beginner lessons.'"
+                placeholder={t.historicalPerformancePlaceholder}
                 required
                 rows={4}
               />
@@ -95,22 +99,21 @@ export function TrainingForm() {
               {isPending ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Generating...
+                  {t.generating}...
                 </>
               ) : (
-                "Generate Schedule"
+                t.generateButton
               )}
             </Button>
-          </CardFooter>
-        </form>
+          </CardFooter>        </form>
       </Card>
       <Card className="bg-secondary border-border">
         <CardHeader>
           <CardTitle className="font-headline text-3xl">
-            Your AI-Generated Schedule
+            {t.outputTitle}
           </CardTitle>
           <CardDescription>
-            Follow this plan to reach your goals.
+            {t.outputDescription}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -121,7 +124,7 @@ export function TrainingForm() {
           )}
           {state?.error && (
             <Alert variant="destructive">
-              <AlertTitle>Error</AlertTitle>
+              <AlertTitle>{t.errorTitle}</AlertTitle>
               <AlertDescription>{state.error}</AlertDescription>
             </Alert>
           )}
@@ -132,7 +135,7 @@ export function TrainingForm() {
           )}
           {!isPending && !state?.error && !state?.schedule && (
              <div className="flex items-center justify-center text-center text-muted-foreground h-64">
-                <p>Your generated training schedule will appear here.</p>
+                <p>{t.outputPlaceholder}</p>
              </div>
           )}
         </CardContent>

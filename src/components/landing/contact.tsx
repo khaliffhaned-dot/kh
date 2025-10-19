@@ -17,14 +17,19 @@ import {
   FormMessage,
 } from "../ui/form";
 import { Loader2 } from "lucide-react";
-
-const contactSchema = z.object({
-  name: z.string().min(1, "Name is required"),
-  email: z.string().email("Invalid email address"),
-  message: z.string().min(10, "Message must be at least 10 characters"),
-});
+import { useLanguage } from "@/context/language-context";
+import { translations } from "@/lib/translations";
 
 export function ContactSection() {
+  const { language } = useLanguage();
+  const t = translations[language].contact;
+
+  const contactSchema = z.object({
+    name: z.string().min(1, t.validation.name),
+    email: z.string().email(t.validation.email),
+    message: z.string().min(10, t.validation.message),
+  });
+
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitStatus, setSubmitStatus] = useState<string | null>(null);
 
@@ -35,10 +40,10 @@ export function ContactSection() {
 
   const onSubmit = (values: z.infer<typeof contactSchema>) => {
     setIsSubmitting(true);
-    setSubmitStatus("Sending...");
+    setSubmitStatus(t.sending);
     setTimeout(() => {
       setIsSubmitting(false);
-      setSubmitStatus("Your message has been sent successfully!");
+      setSubmitStatus(t.success);
       form.reset();
       setTimeout(() => setSubmitStatus(null), 5000);
     }, 1500);
@@ -49,18 +54,17 @@ export function ContactSection() {
       <div className="container mx-auto px-6">
         <div className="text-center mb-16">
           <h2 className="font-headline text-5xl md:text-6xl font-semibold text-white">
-            Get In Touch
+            {t.title}
           </h2>
           <p className="mt-2 text-gray-300 max-w-2xl mx-auto">
-            Have questions? We'd love to hear from you. Drop by or send us a
-            message.
+            {t.subtitle}
           </p>
         </div>
         <div className="grid md:grid-cols-2 gap-12">
           <Card className="bg-secondary border-border p-2">
             <CardHeader>
               <CardTitle className="font-headline text-3xl text-white">
-                Contact Form
+                {t.formTitle}
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -74,7 +78,7 @@ export function ContactSection() {
                     name="name"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Name</FormLabel>
+                        <FormLabel>{t.nameLabel}</FormLabel>
                         <FormControl>
                           <Input {...field} />
                         </FormControl>
@@ -87,7 +91,7 @@ export function ContactSection() {
                     name="email"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Email</FormLabel>
+                        <FormLabel>{t.emailLabel}</FormLabel>
                         <FormControl>
                           <Input type="email" {...field} />
                         </FormControl>
@@ -100,7 +104,7 @@ export function ContactSection() {
                     name="message"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Message</FormLabel>
+                        <FormLabel>{t.messageLabel}</FormLabel>
                         <FormControl>
                           <Textarea rows={4} {...field} />
                         </FormControl>
@@ -112,7 +116,7 @@ export function ContactSection() {
                     {isSubmitting && (
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                     )}
-                    Send Message
+                    {isSubmitting ? t.sending : t.submitButton}
                   </Button>
                 </form>
               </Form>
@@ -124,7 +128,7 @@ export function ContactSection() {
             </CardContent>
           </Card>
           <div className="text-gray-200">
-            <h3 className="font-headline text-3xl text-white">Visit Us</h3>
+            <h3 className="font-headline text-3xl text-white">{t.visitTitle}</h3>
             <p className="mt-6 text-gray-300">
               Wise Aim Revolution Archery Club
               <br />
@@ -132,14 +136,12 @@ export function ContactSection() {
               <br />
               57000 Kuala Lumpur, Malaysia
             </p>
-            <h4 className="font-bold mt-6 text-white">Opening Hours:</h4>
+            <h4 className="font-bold mt-6 text-white">{t.hoursTitle}</h4>
             <p className="text-gray-300">
-              Monday - Friday: 2 PM - 10 PM
-              <br />
-              Saturday - Sunday: 10 AM - 10 PM
+              {t.hours}
             </p>
             <div className="mt-6 w-full h-64 bg-secondary rounded-2xl flex items-center justify-center">
-              <p className="text-gray-400">Map Placeholder</p>
+              <p className="text-gray-400">{t.mapPlaceholder}</p>
             </div>
           </div>
         </div>
