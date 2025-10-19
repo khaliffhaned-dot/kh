@@ -52,7 +52,7 @@ export function MembershipSection() {
     {
       id: "warion",
       name: t.plans.warion.name,
-      price: 400,
+      price: 100,
       description: t.plans.warion.description,
       features: [
         { text: t.plans.warion.features[0], included: true },
