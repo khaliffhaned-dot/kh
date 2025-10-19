@@ -1,3 +1,4 @@
+
 export const translations = {
   en: {
     nav: {
@@ -52,7 +53,7 @@ export const translations = {
           ],
         },
         warion: {
-          name: "WARion",
+          name: "WARion Warrior",
           description: "Normal Membership (Adults)",
           features: [
             "Unlimited Range Access",
@@ -183,7 +184,7 @@ export const translations = {
           ],
         },
         warion: {
-          name: "WARion",
+          name: "WARion Warrior",
           description: "Keahlian Biasa (Dewasa)",
           features: [
             "Akses Lapangan Tanpa Had",
@@ -262,3 +263,5 @@ export const translations = {
     },
   },
 };
+
+    
