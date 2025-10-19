@@ -108,11 +108,6 @@ export function MembershipSection() {
                 )}
               >
                 <div className="flex-grow">
-                  {plan.popular && (
-                    <p className="text-sm font-bold bg-primary text-primary-foreground rounded-full px-3 py-1 inline-block mb-4">
-                      {t.mostPopular}
-                    </p>
-                  )}
                   <h3 className="font-headline text-4xl font-medium text-primary">
                     {plan.name}
                   </h3>
