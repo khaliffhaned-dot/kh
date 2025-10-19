@@ -129,15 +129,11 @@ export function ContactSection() {
           </Card>
           <div className="text-gray-200">
             <h3 className="font-headline text-3xl text-white">{t.visitTitle}</h3>
-            <p className="mt-6 text-gray-300">
-              Wise Aim Revolution Archery Club
-              <br />
-              123 Archery Lane, Bukit Jalil,
-              <br />
-              57000 Kuala Lumpur, Malaysia
+            <p className="mt-6 text-gray-300" style={{ whiteSpace: 'pre-line' }}>
+              {t.address}
             </p>
             <h4 className="font-bold mt-6 text-white">{t.hoursTitle}</h4>
-            <p className="text-gray-300">
+            <p className="text-gray-300" style={{ whiteSpace: 'pre-line' }}>
               {t.hours}
             </p>
             <div className="mt-6 w-full h-64 bg-secondary rounded-2xl flex items-center justify-center">
