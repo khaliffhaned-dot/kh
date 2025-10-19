@@ -33,7 +33,7 @@ export const translations = {
       plans: {
         sharpshooter: {
           name: "WARion Junior",
-          description: "Perfect for beginners",
+          description: "Junior Membership (Under 18)",
           features: [
             "8 Hours Range Access",
             "Basic Gear Rental",
@@ -164,7 +164,7 @@ export const translations = {
       plans: {
         sharpshooter: {
           name: "WARion Junior",
-          description: "Sesuai untuk pemula",
+          description: "Keahlian Junior (Bawah 18 Tahun)",
           features: [
             "Akses Lapangan 8 Jam",
             "Sewaan Peralatan Asas",
