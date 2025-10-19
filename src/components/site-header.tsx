@@ -64,7 +64,7 @@ export function SiteHeader() {
   return (
     <header
       className={cn(
-        "bg-black bg-opacity-50 backdrop-blur-md fixed top-0 left-0 right-0 z-40 transition-all duration-300",
+        "fixed top-0 left-0 right-0 z-40 transition-all duration-300 bg-background/50 border-b border-white/10 shadow-lg backdrop-blur-lg",
         isScrolled ? "py-2" : "py-4"
       )}
     >
