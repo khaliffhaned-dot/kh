@@ -9,7 +9,7 @@ import { useLanguage } from "@/context/language-context";
 import { translations } from "@/lib/translations";
 
 type Plan = {
-  id: "sharpshooter" | "bullseye" | "olympian";
+  id: "sharpshooter" | "bullseye" | "warions";
   name: string;
   price: number;
   description: string;
@@ -50,7 +50,7 @@ export function MembershipSection() {
       popular: true,
     },
     {
-      id: "olympian",
+      id: "warions",
       name: t.plans.olympian.name,
       price: 400,
       description: t.plans.olympian.description,

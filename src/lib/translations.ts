@@ -52,7 +52,7 @@ export const translations = {
           ],
         },
         olympian: {
-          name: "Olympian",
+          name: "WARions",
           description: "For the competitive spirit",
           features: [
             "Unlimited Range Access",
@@ -183,7 +183,7 @@ export const translations = {
           ],
         },
         olympian: {
-          name: "Olympian",
+          name: "WARions",
           description: "Untuk semangat persaingan",
           features: [
             "Akses Lapangan Tanpa Had",
