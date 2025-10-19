@@ -51,8 +51,8 @@ export const translations = {
             "Personal Locker",
           ],
         },
-        olympian: {
-          name: "WARions",
+        warion: {
+          name: "WARion",
           description: "For the competitive spirit",
           features: [
             "Unlimited Range Access",
@@ -182,8 +182,8 @@ export const translations = {
             "Loker Peribadi",
           ],
         },
-        olympian: {
-          name: "WARions",
+        warion: {
+          name: "WARion",
           description: "Untuk semangat persaingan",
           features: [
             "Akses Lapangan Tanpa Had",

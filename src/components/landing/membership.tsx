@@ -9,7 +9,7 @@ import { useLanguage } from "@/context/language-context";
 import { translations } from "@/lib/translations";
 
 type Plan = {
-  id: "sharpshooter" | "bullseye" | "warions";
+  id: "sharpshooter" | "bullseye" | "warion";
   name: string;
   price: number;
   description: string;
@@ -50,15 +50,15 @@ export function MembershipSection() {
       popular: true,
     },
     {
-      id: "warions",
-      name: t.plans.olympian.name,
+      id: "warion",
+      name: t.plans.warion.name,
       price: 400,
-      description: t.plans.olympian.description,
+      description: t.plans.warion.description,
       features: [
-        { text: t.plans.olympian.features[0], included: true },
-        { text: t.plans.olympian.features[1], included: true },
-        { text: t.plans.olympian.features[2], included: true },
-        { text: t.plans.olympian.features[3], included: true },
+        { text: t.plans.warion.features[0], included: true },
+        { text: t.plans.warion.features[1], included: true },
+        { text: t.plans.warion.features[2], included: true },
+        { text: t.plans.warion.features[3], included: true },
       ],
       popular: false,
     },
