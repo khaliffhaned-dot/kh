@@ -39,7 +39,7 @@ export function MembershipSection() {
     {
       id: "warion-wiser",
       name: t.plans.warionWiser.name,
-      price: 250,
+      price: 60,
       description: t.plans.warionWiser.description,
       features: [
         { text: t.plans.warionWiser.features[0], included: true },
