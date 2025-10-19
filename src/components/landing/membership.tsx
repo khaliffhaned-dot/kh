@@ -26,7 +26,7 @@ export function MembershipSection() {
     {
       id: "sharpshooter",
       name: t.plans.sharpshooter.name,
-      price: 150,
+      price: 80,
       description: t.plans.sharpshooter.description,
       features: [
         { text: t.plans.sharpshooter.features[0], included: true },
