@@ -32,7 +32,7 @@ export const translations = {
       joinPlan: "Join Plan",
       plans: {
         sharpshooter: {
-          name: "Sharpshooter",
+          name: "Young WARians",
           description: "Perfect for beginners",
           features: [
             "8 Hours Range Access",
@@ -163,7 +163,7 @@ export const translations = {
       joinPlan: "Sertai Pelan",
       plans: {
         sharpshooter: {
-          name: "Sharpshooter",
+          name: "Young WARians",
           description: "Sesuai untuk pemula",
           features: [
             "Akses Lapangan 8 Jam",
