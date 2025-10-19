@@ -1,3 +1,64 @@
 {
-  "placeholderImages": []
+  "placeholderImages": [
+    {
+      "id": "hero-bg",
+      "description": "Archer at full draw with intense focus, bow aimed at a distant target.",
+      "imageUrl": "https://images.unsplash.com/photo-1733141732172-3abba91f4db2?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw1fHxhcmNoZXIlMjBmb2N1c3xlbnwwfHx8fDE3NjA5MTAwMzB8MA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "archer focus"
+    },
+    {
+      "id": "about-range",
+      "description": "A wide shot of a modern, well-lit indoor archery range with multiple lanes.",
+      "imageUrl": "https://images.unsplash.com/photo-1686445921828-d9c22e714f24?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxfHxhcmNoZXJ5JTIwcmFuZ2V8ZW58MHx8fHwxNzYwOTEwMDMwfDA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "archery range"
+    },
+    {
+      "id": "gallery-1",
+      "description": "Close-up shot of an archer's hands, nocking an arrow to the bowstring.",
+      "imageUrl": "https://images.unsplash.com/photo-1604171886922-64e1edcb3357?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwzfHxhcmNoZXIlMjBoYW5kc3xlbnwwfHx8fDE3NjA5MTAwMzB8MA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "archer hands"
+    },
+    {
+      "id": "gallery-2",
+      "description": "An arrow perfectly hitting the bullseye of a target.",
+      "imageUrl": "https://images.unsplash.com/photo-1568588711549-e97883031992?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw5fHxhcnJvdyUyMGJ1bGxzZXllfGVufDB8fHx8MTc2MDkxMDAzMHww&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "arrow bullseye"
+    },
+    {
+      "id": "gallery-3",
+      "description": "A group of archers training together with a coach.",
+      "imageUrl": "https://images.unsplash.com/photo-1689794500548-ec0663c50526?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw0fHxhcmNoZXJ5JTIwY2xhc3N8ZW58MHx8fHwxNzYwOTEwMDMwfDA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "archery class"
+    },
+    {
+      "id": "gallery-4",
+      "description": "A young archer learning the proper stance.",
+      "imageUrl": "https://images.unsplash.com/photo-1562008752-2459495a0c05?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw0fHx5b3VuZyUyMGFyY2hlcnxlbnwwfHx8fDE3NjA5MTAwMzB8MA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "young archer"
+    },
+    {
+      "id": "gallery-5",
+      "description": "An outdoor archery competition with archers in a line.",
+      "imageUrl": "https://images.unsplash.com/photo-1760647756713-ab896b8004bc?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw4fHxhcmNoZXJ5JTIwY29tcGV0aXRpb258ZW58MHx8fHwxNzYwOTEwMDMwfDA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "archery competition"
+    },
+    {
+      "id": "gallery-6",
+      "description": "An archer adjusting the sight on their compound bow.",
+      "imageUrl": "https://images.unsplash.com/photo-1682588110792-946366008481?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw5fHxib3clMjB0dW5pbmd8ZW58MHx8fHwxNzYwOTEwMDMwfDA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "bow tuning"
+    },
+    {
+      "id": "gallery-7",
+      "description": "A happy group of club members posing for a photo.",
+      "imageUrl": "https://images.unsplash.com/photo-1716703742352-0bbdb45f505b?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxMHx8dGVhbSUyMHBob3RvfGVufDB8fHx8MTc2MDg1OTE4Mnww&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "team photo"
+    },
+    {
+      "id": "gallery-8",
+      "description": "An archer receiving a medal at a tournament.",
+      "imageUrl": "https://images.unsplash.com/photo-1562008752-2459495a0c05?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwyfHxhcmNoZXIlMjB2aWN0b3J5fGVufDB8fHx8MTc2MDkxMDAzMHww&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "archer victory"
+    }
+  ]
 }
