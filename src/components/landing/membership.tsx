@@ -41,19 +41,6 @@ export function MembershipSection() {
       popular: false,
     },
     {
-      id: "warion-wiser",
-      name: t.plans.warionWiser.name,
-      price: 60,
-      description: t.plans.warionWiser.description,
-      features: [
-        { text: t.plans.warionWiser.features[0], included: true },
-        { text: t.plans.warionWiser.features[1], included: true },
-        { text: t.plans.warionWiser.features[2], included: true },
-        { text: t.plans.warionWiser.features[3], included: true },
-      ],
-      popular: true,
-    },
-    {
       id: "warion",
       name: t.plans.warion.name,
       price: 100,
@@ -65,6 +52,19 @@ export function MembershipSection() {
         { text: t.plans.warion.features[3], included: true },
       ],
       popular: false,
+    },
+    {
+      id: "warion-wiser",
+      name: t.plans.warionWiser.name,
+      price: 60,
+      description: t.plans.warionWiser.description,
+      features: [
+        { text: t.plans.warionWiser.features[0], included: true },
+        { text: t.plans.warionWiser.features[1], included: true },
+        { text: t.plans.warionWiser.features[2], included: true },
+        { text: t.plans.warionWiser.features[3], included: true },
+      ],
+      popular: true,
     },
   ];
 
