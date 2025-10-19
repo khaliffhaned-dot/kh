@@ -53,7 +53,7 @@ export const translations = {
         },
         warion: {
           name: "WARion",
-          description: "For the competitive spirit",
+          description: "Normal Membership (Adults)",
           features: [
             "Unlimited Range Access",
             "Pro-Grade Gear Rental",
@@ -184,7 +184,7 @@ export const translations = {
         },
         warion: {
           name: "WARion",
-          description: "Untuk semangat persaingan",
+          description: "Keahlian Biasa (Dewasa)",
           features: [
             "Akses Lapangan Tanpa Had",
             "Sewaan Peralatan Gred-Pro",
