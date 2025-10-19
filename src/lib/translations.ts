@@ -43,7 +43,7 @@ export const translations = {
         },
         warionWiser: {
           name: "WARion Wiser",
-          description: "For the dedicated archer",
+          description: "Senior Citizen Membership (50 Y/O and above)",
           features: [
             "20 Hours Range Access",
             "Advanced Gear Rental",
@@ -174,7 +174,7 @@ export const translations = {
         },
         warionWiser: {
           name: "WARion Wiser",
-          description: "Untuk pemanah yang berdedikasi",
+          description: "Keahlian Warga Emas (50 Tahun ke atas)",
           features: [
             "Akses Lapangan 20 Jam",
             "Sewaan Peralatan Lanjutan",
