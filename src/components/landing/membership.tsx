@@ -38,7 +38,7 @@ export function MembershipSection() {
         { text: t.plans.sharpshooter.features[2], included: true },
         { text: t.plans.sharpshooter.features[3], included: false },
       ],
-      popular: false,
+      popular: true,
     },
     {
       id: "warion",
@@ -64,7 +64,7 @@ export function MembershipSection() {
         { text: t.plans.warionWiser.features[2], included: true },
         { text: t.plans.warionWiser.features[3], included: true },
       ],
-      popular: true,
+      popular: false,
     },
   ];
 
