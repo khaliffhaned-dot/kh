@@ -16,7 +16,7 @@ export function SiteFooter() {
           href="/"
           className="font-headline text-4xl font-bold text-white tracking-wider"
         >
-          WAR<span className="text-primary">AC</span>
+          <span className="text-primary animate-pulse-slow">WAR</span><span className="text-accent">AC</span>
         </Link>
         <div className="flex justify-center space-x-6 mt-4">
           <Link href="#" className="hover:text-primary">

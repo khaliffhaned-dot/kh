@@ -71,7 +71,7 @@ export function SiteHeader() {
       <div className="container mx-auto px-6">
         <div className="flex items-center justify-between">
           <Link href="/" className="font-headline text-4xl font-bold text-white tracking-wider">
-            WAR<span className="text-primary">AC</span>
+            <span className="text-primary animate-pulse-slow">WAR</span><span className="text-accent">AC</span>
           </Link>
           <nav className="hidden md:flex items-center space-x-8">
             {navLinks.map(link => (
