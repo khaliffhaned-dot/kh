@@ -1,3 +1,4 @@
+
 "use client";
 
 import { Check, X } from "lucide-react";
@@ -7,6 +8,8 @@ import { useState } from "react";
 import { PaymentModal } from "./payment-modal";
 import { useLanguage } from "@/context/language-context";
 import { translations } from "@/lib/translations";
+import Image from "next/image";
+import { PlaceHolderImages } from "@/lib/placeholder-images";
 
 type Plan = {
   id: "sharpshooter" | "warion-wiser" | "warion";
@@ -21,6 +24,7 @@ export function MembershipSection() {
   const [selectedPlan, setSelectedPlan] = useState<Plan | null>(null);
   const { language } = useLanguage();
   const t = translations[language].membership;
+  const membershipImage = PlaceHolderImages.find((img) => img.id === "gallery-5");
 
   const plans: Plan[] = [
     {
@@ -74,7 +78,17 @@ export function MembershipSection() {
 
   return (
     <>
-      <section id="membership" className="py-20 md:py-32">
+      <section id="membership" className="py-20 md:py-32 relative">
+        {membershipImage && (
+            <Image
+            src={membershipImage.imageUrl}
+            alt={membershipImage.description}
+            fill
+            className="object-cover -z-20"
+            data-ai-hint={membershipImage.imageHint}
+            />
+        )}
+        <div className="absolute inset-0 bg-background/80 -z-10" />
         <div className="container mx-auto px-6">
           <div className="text-center mb-16">
             <h2 className="font-headline text-5xl md:text-6xl font-semibold text-white">
@@ -89,7 +103,7 @@ export function MembershipSection() {
               <div
                 key={plan.name}
                 className={cn(
-                  "bg-secondary p-8 rounded-2xl border-2 border-transparent flex flex-col hover:border-primary transition-all duration-300",
+                  "bg-secondary/80 p-8 rounded-2xl border-2 border-transparent flex flex-col hover:border-primary transition-all duration-300 backdrop-blur-sm",
                   plan.popular && "border-primary scale-105 shadow-2xl shadow-primary/10"
                 )}
               >
