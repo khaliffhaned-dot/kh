@@ -1,0 +1,1978 @@
+From 2db22ac845fd6494fe72d2b08e9746ed5770182d Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Fri, 3 Jul 2026 07:01:00 +0000
+Subject: [PATCH] Add Media Monitor Malaysia: free Meltwater-style media
+ monitoring dashboard
+
+Aggregates 20+ Malaysian RSS feeds (BM/EN/ZH/TA outlets plus Google News
+MY) server-side with no paid APIs, and analyses coverage with rule-based
+NLP tuned for local nuance:
+
+- Language detection incl. Manglish/bahasa rojak 'mixed' register
+- Sentiment lexicon for BM, Manglish slang, English and basic Chinese,
+  with BM negation (tak/bukan/jangan) and intensifiers (memang/gila)
+- Entity dictionary for parties, agencies (KWSP/EPF, SPRM/MACC aliases),
+  GLCs, states and recurring national issues
+
+Dashboard at /monitor: keyword tracking saved in localStorage, sentiment
+timeline, share of voice, language mix charts, filterable mention feed
+and per-feed health reporting. Nav link added in EN and BM.
+
+Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01YXs2gSMMi3DQa7e27Rt8Ed
+---
+ README.md                                    |  31 ++
+ src/app/api/monitor/route.ts                 | 110 ++++++
+ src/app/monitor/page.tsx                     |  27 ++
+ src/components/monitor/article-feed.tsx      | 114 ++++++
+ src/components/monitor/colors.ts             |  31 ++
+ src/components/monitor/monitor-charts.tsx    | 235 +++++++++++
+ src/components/monitor/monitor-dashboard.tsx | 389 +++++++++++++++++++
+ src/components/site-header.tsx               |   1 +
+ src/lib/monitor/analyze.ts                   |  44 +++
+ src/lib/monitor/entities.ts                  | 145 +++++++
+ src/lib/monitor/language.ts                  |  64 +++
+ src/lib/monitor/rss.ts                       | 137 +++++++
+ src/lib/monitor/sentiment.ts                 | 161 ++++++++
+ src/lib/monitor/sources.ts                   | 242 ++++++++++++
+ src/lib/monitor/types.ts                     |  73 ++++
+ src/lib/translations.ts                      |   2 +
+ 16 files changed, 1806 insertions(+)
+ create mode 100644 src/app/api/monitor/route.ts
+ create mode 100644 src/app/monitor/page.tsx
+ create mode 100644 src/components/monitor/article-feed.tsx
+ create mode 100644 src/components/monitor/colors.ts
+ create mode 100644 src/components/monitor/monitor-charts.tsx
+ create mode 100644 src/components/monitor/monitor-dashboard.tsx
+ create mode 100644 src/lib/monitor/analyze.ts
+ create mode 100644 src/lib/monitor/entities.ts
+ create mode 100644 src/lib/monitor/language.ts
+ create mode 100644 src/lib/monitor/rss.ts
+ create mode 100644 src/lib/monitor/sentiment.ts
+ create mode 100644 src/lib/monitor/sources.ts
+ create mode 100644 src/lib/monitor/types.ts
+
+diff --git a/README.md b/README.md
+index cc730c7..91ecfee 100644
+--- a/README.md
++++ b/README.md
+@@ -3,3 +3,34 @@
+ This is a NextJS starter in Firebase Studio.
+ 
+ To get started, take a look at src/app/page.tsx.
++
++## Media Monitor Malaysia (`/monitor`)
++
++A free, Meltwater-style media monitoring dashboard focused on Malaysian
++local nuance. No paid APIs or keys — it aggregates public RSS feeds
++server-side and analyses them with transparent, rule-based NLP.
++
++**Coverage** — 20+ Malaysian outlets across four languages (The Star, NST,
++Malay Mail, FMT, Malaysiakini, Berita Harian, Harian Metro, Utusan, Kosmo!,
++Astro Awani, Sin Chew, China Press, Oriental Daily, Borneo Post, Daily
++Express Sabah, SAYS, r/malaysia, The Edge, …) plus Google News MY (EN + BM)
++for keyword searches.
++
++**Malaysian nuance**
++- Language detection: Bahasa Malaysia, English, Chinese, Tamil, and
++  "rojak/mixed" for Manglish-register text
++- Sentiment lexicon covering BM (`teruk`, `berjaya`, `rasuah`, `banjir`),
++  Manglish slang (`syok`, `best giler`, `kantoi`, `hampeh`), English and
++  basic Chinese — with BM negation (`tak/bukan/jangan`) and intensifiers
++  (`memang/sangat/gila`)
++- Entity tagging for coalitions/parties (PH, BN, PN, UMNO, PAS, DAP…),
++  agencies with BM/EN aliases (KWSP/EPF, SPRM/MACC), GLCs and brands,
++  all 13 states + KL/Putrajaya/Labuan, and recurring isu semasa
++  (subsidi, SST, banjir, 1MDB, scam…)
++
++**Dashboard** — keyword tracking (saved locally in the browser), sentiment
++timeline, share of voice, language mix, filterable mention feed with
++per-feed health status.
++
++Key paths: `src/lib/monitor/` (sources + NLP), `src/app/api/monitor/`
++(aggregation API), `src/components/monitor/` (dashboard UI).
+diff --git a/src/app/api/monitor/route.ts b/src/app/api/monitor/route.ts
+new file mode 100644
+index 0000000..c5e21c0
+--- /dev/null
++++ b/src/app/api/monitor/route.ts
+@@ -0,0 +1,110 @@
++import { NextRequest, NextResponse } from "next/server";
++import { MONITOR_SOURCES, googleNewsSources } from "@/lib/monitor/sources";
++import { parseFeed } from "@/lib/monitor/rss";
++import {
++  analyzeArticle,
++  dedupeArticles,
++  matchesQuery,
++} from "@/lib/monitor/analyze";
++import type {
++  AnalyzedArticle,
++  MonitorResponse,
++  MonitorSource,
++  SourceFetchStatus,
++} from "@/lib/monitor/types";
++
++export const dynamic = "force-dynamic";
++
++const FETCH_TIMEOUT_MS = 8000;
++const MAX_ARTICLES = 200;
++const WINDOW_DAYS = 7;
++
++async function fetchSource(
++  source: MonitorSource
++): Promise<{ status: SourceFetchStatus; articles: AnalyzedArticle[] }> {
++  try {
++    const res = await fetch(source.feedUrl, {
++      signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
++      headers: {
++        // Some Malaysian CDNs (and Reddit) reject requests without a UA.
++        "User-Agent":
++          "Mozilla/5.0 (compatible; MYMediaMonitor/1.0; +https://github.com/khaliffhaned-dot/kh)",
++        Accept: "application/rss+xml, application/atom+xml, application/xml, text/xml, */*",
++      },
++      // Be polite to publishers: reuse feed responses for 5 minutes.
++      next: { revalidate: 300 },
++    });
++    if (!res.ok) {
++      return {
++        status: {
++          sourceId: source.id,
++          sourceName: source.name,
++          ok: false,
++          itemCount: 0,
++          error: `HTTP ${res.status}`,
++        },
++        articles: [],
++      };
++    }
++    const xml = await res.text();
++    const items = parseFeed(xml, source);
++    return {
++      status: {
++        sourceId: source.id,
++        sourceName: source.name,
++        ok: true,
++        itemCount: items.length,
++      },
++      articles: items.map(analyzeArticle),
++    };
++  } catch (err) {
++    return {
++      status: {
++        sourceId: source.id,
++        sourceName: source.name,
++        ok: false,
++        itemCount: 0,
++        error: err instanceof Error ? err.message : "fetch failed",
++      },
++      articles: [],
++    };
++  }
++}
++
++export async function GET(req: NextRequest) {
++  const query = (req.nextUrl.searchParams.get("q") ?? "").slice(0, 200).trim();
++
++  let sources = [...MONITOR_SOURCES];
++  // A tracked keyword also queries Google News MY (EN + BM) so coverage
++  // extends beyond the curated feeds.
++  if (query) {
++    sources = sources.concat(googleNewsSources(query.split(",")[0].trim()));
++  }
++
++  const results = await Promise.all(sources.map(fetchSource));
++
++  const cutoff = Date.now() - WINDOW_DAYS * 24 * 60 * 60 * 1000;
++  const articles = dedupeArticles(
++    results
++      .flatMap((r) => r.articles)
++      .filter((a) => !query || matchesQuery(a, query))
++      .filter((a) => !a.publishedAt || new Date(a.publishedAt).getTime() >= cutoff)
++  )
++    .sort((a, b) => {
++      const ta = a.publishedAt ? new Date(a.publishedAt).getTime() : 0;
++      const tb = b.publishedAt ? new Date(b.publishedAt).getTime() : 0;
++      return tb - ta;
++    })
++    .slice(0, MAX_ARTICLES);
++
++  const body: MonitorResponse = {
++    articles,
++    sources: results.map((r) => r.status),
++    fetchedAt: new Date().toISOString(),
++    query,
++  };
++
++  return NextResponse.json(body, {
++    headers: { "Cache-Control": "no-store" },
++  });
++}
+diff --git a/src/app/monitor/page.tsx b/src/app/monitor/page.tsx
+new file mode 100644
+index 0000000..3ed9491
+--- /dev/null
++++ b/src/app/monitor/page.tsx
+@@ -0,0 +1,27 @@
++import type { Metadata } from "next";
++import { MonitorDashboard } from "@/components/monitor/monitor-dashboard";
++
++export const metadata: Metadata = {
++  title: "Media Monitor Malaysia",
++  description:
++    "Free media monitoring across Malaysian news in BM, English, Chinese and Tamil — keyword tracking, sentiment and share of voice.",
++};
++
++export default function MonitorPage() {
++  return (
++    <div className="container mx-auto min-h-screen px-4 pb-16 pt-28 sm:px-6">
++      <div className="mb-6">
++        <h1 className="font-headline text-3xl font-bold text-foreground sm:text-4xl">
++          Media Monitor <span className="text-primary">Malaysia</span>
++        </h1>
++        <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
++          A free, Meltwater-style monitor built for Malaysian nuance:
++          20+ local outlets across Bahasa Malaysia, English, Chinese and
++          Tamil, with sentiment tuned for Manglish and bahasa rojak, and
++          entity tagging for parties, agencies, GLCs and isu semasa.
++        </p>
++      </div>
++      <MonitorDashboard />
++    </div>
++  );
++}
+diff --git a/src/components/monitor/article-feed.tsx b/src/components/monitor/article-feed.tsx
+new file mode 100644
+index 0000000..d192ba9
+--- /dev/null
++++ b/src/components/monitor/article-feed.tsx
+@@ -0,0 +1,114 @@
++"use client";
++
++import { formatDistanceToNow } from "date-fns";
++import { ExternalLink, Minus, ThumbsDown, ThumbsUp } from "lucide-react";
++import { Badge } from "@/components/ui/badge";
++import { Card, CardContent } from "@/components/ui/card";
++import type { AnalyzedArticle, SentimentLabel } from "@/lib/monitor/types";
++import { LANGUAGE_LABELS } from "./colors";
++import { cn } from "@/lib/utils";
++
++// Sentiment is icon + label, never color alone.
++const SENTIMENT_META: Record<
++  SentimentLabel,
++  { label: string; icon: typeof ThumbsUp; className: string }
++> = {
++  positive: {
++    label: "Positive",
++    icon: ThumbsUp,
++    className: "border-[#0ca30c]/50 text-[#2fc42f]",
++  },
++  neutral: {
++    label: "Neutral",
++    icon: Minus,
++    className: "border-muted-foreground/50 text-muted-foreground",
++  },
++  negative: {
++    label: "Negative",
++    icon: ThumbsDown,
++    className: "border-[#e66767]/50 text-[#e66767]",
++  },
++};
++
++export function ArticleFeed({ articles }: { articles: AnalyzedArticle[] }) {
++  if (articles.length === 0) {
++    return (
++      <Card>
++        <CardContent className="py-12 text-center text-muted-foreground">
++          No mentions found in the last 7 days. Try a broader keyword, or
++          leave the search empty to see everything the Malaysian press is
++          publishing right now.
++        </CardContent>
++      </Card>
++    );
++  }
++
++  return (
++    <div className="space-y-3">
++      {articles.map((a) => {
++        const meta = SENTIMENT_META[a.sentiment.label];
++        const Icon = meta.icon;
++        return (
++          <Card key={a.link} className="transition-colors hover:border-accent/60">
++            <CardContent className="p-4">
++              <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
++                <span className="font-semibold text-foreground/80">
++                  {a.sourceName}
++                </span>
++                <span aria-hidden>·</span>
++                <span>{LANGUAGE_LABELS[a.language]}</span>
++                {a.publishedAt && (
++                  <>
++                    <span aria-hidden>·</span>
++                    <time dateTime={a.publishedAt}>
++                      {formatDistanceToNow(new Date(a.publishedAt), {
++                        addSuffix: true,
++                      })}
++                    </time>
++                  </>
++                )}
++                <Badge
++                  variant="outline"
++                  className={cn("ml-auto gap-1 font-normal", meta.className)}
++                >
++                  <Icon className="h-3 w-3" aria-hidden />
++                  {meta.label}
++                </Badge>
++              </div>
++              <a
++                href={a.link}
++                target="_blank"
++                rel="noopener noreferrer"
++                className="mt-2 block font-semibold leading-snug text-foreground hover:text-primary"
++              >
++                {a.title}
++                <ExternalLink
++                  className="ml-1 inline h-3.5 w-3.5 opacity-50"
++                  aria-hidden
++                />
++              </a>
++              {a.description && (
++                <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">
++                  {a.description}
++                </p>
++              )}
++              {a.entities.length > 0 && (
++                <div className="mt-2 flex flex-wrap gap-1.5">
++                  {a.entities.slice(0, 6).map((e) => (
++                    <Badge
++                      key={e.name}
++                      variant="secondary"
++                      className="text-[10px] font-normal"
++                    >
++                      {e.name}
++                    </Badge>
++                  ))}
++                </div>
++              )}
++            </CardContent>
++          </Card>
++        );
++      })}
++    </div>
++  );
++}
+diff --git a/src/components/monitor/colors.ts b/src/components/monitor/colors.ts
+new file mode 100644
+index 0000000..4f4d1d7
+--- /dev/null
++++ b/src/components/monitor/colors.ts
+@@ -0,0 +1,31 @@
++import type { MonitorLanguage, SentimentLabel } from "@/lib/monitor/types";
++
++/**
++ * Chart palette validated (CVD separation, lightness band, ≥3:1 contrast)
++ * against this app's dark card surface (#253346). Sentiment uses a
++ * diverging pair with a deliberate neutral-gray midpoint; languages use
++ * fixed categorical slots so a language keeps its hue across filters.
++ */
++export const SENTIMENT_COLORS: Record<SentimentLabel, string> = {
++  positive: "#0ca30c",
++  neutral: "#898781",
++  negative: "#e66767",
++};
++
++export const LANGUAGE_COLORS: Record<MonitorLanguage, string> = {
++  ms: "#3987e5",
++  en: "#199e70",
++  zh: "#c98500",
++  ta: "#9085e9",
++  mixed: "#898781",
++};
++
++export const LANGUAGE_LABELS: Record<MonitorLanguage, string> = {
++  ms: "Bahasa Malaysia",
++  en: "English",
++  zh: "中文 (Chinese)",
++  ta: "தமிழ் (Tamil)",
++  mixed: "Rojak / Mixed",
++};
++
++export const SINGLE_SERIES_COLOR = "#3987e5";
+diff --git a/src/components/monitor/monitor-charts.tsx b/src/components/monitor/monitor-charts.tsx
+new file mode 100644
+index 0000000..ff9bad5
+--- /dev/null
++++ b/src/components/monitor/monitor-charts.tsx
+@@ -0,0 +1,235 @@
++"use client";
++
++import { useMemo } from "react";
++import { format, startOfDay, subDays } from "date-fns";
++import {
++  Bar,
++  BarChart,
++  CartesianGrid,
++  XAxis,
++  YAxis,
++} from "recharts";
++import {
++  Card,
++  CardContent,
++  CardDescription,
++  CardHeader,
++  CardTitle,
++} from "@/components/ui/card";
++import {
++  ChartContainer,
++  ChartLegend,
++  ChartLegendContent,
++  ChartTooltip,
++  ChartTooltipContent,
++  type ChartConfig,
++} from "@/components/ui/chart";
++import type { AnalyzedArticle, MonitorLanguage } from "@/lib/monitor/types";
++import {
++  LANGUAGE_COLORS,
++  LANGUAGE_LABELS,
++  SENTIMENT_COLORS,
++  SINGLE_SERIES_COLOR,
++} from "./colors";
++
++const sentimentConfig = {
++  positive: { label: "Positive", color: SENTIMENT_COLORS.positive },
++  neutral: { label: "Neutral", color: SENTIMENT_COLORS.neutral },
++  negative: { label: "Negative", color: SENTIMENT_COLORS.negative },
++} satisfies ChartConfig;
++
++const volumeConfig = {
++  count: { label: "Mentions", color: SINGLE_SERIES_COLOR },
++} satisfies ChartConfig;
++
++/** Sentiment-stacked daily mention volume for the trailing 7 days. */
++export function SentimentTimeline({
++  articles,
++}: {
++  articles: AnalyzedArticle[];
++}) {
++  const data = useMemo(() => {
++    const days = Array.from({ length: 7 }, (_, i) => {
++      const day = startOfDay(subDays(new Date(), 6 - i));
++      return {
++        key: day.getTime(),
++        day: format(day, "d MMM"),
++        positive: 0,
++        neutral: 0,
++        negative: 0,
++      };
++    });
++    for (const a of articles) {
++      if (!a.publishedAt) continue;
++      const t = startOfDay(new Date(a.publishedAt)).getTime();
++      const bucket = days.find((d) => d.key === t);
++      if (bucket) bucket[a.sentiment.label]++;
++    }
++    return days;
++  }, [articles]);
++
++  return (
++    <Card>
++      <CardHeader>
++        <CardTitle className="text-base">Mentions by day</CardTitle>
++        <CardDescription>Stacked by sentiment, last 7 days</CardDescription>
++      </CardHeader>
++      <CardContent>
++        <ChartContainer config={sentimentConfig} className="h-56 w-full">
++          <BarChart data={data} margin={{ top: 4, right: 4, left: -20 }}>
++            <CartesianGrid vertical={false} strokeOpacity={0.25} />
++            <XAxis
++              dataKey="day"
++              tickLine={false}
++              axisLine={false}
++              tickMargin={8}
++            />
++            <YAxis tickLine={false} axisLine={false} allowDecimals={false} />
++            <ChartTooltip content={<ChartTooltipContent />} />
++            <ChartLegend content={<ChartLegendContent />} />
++            <Bar
++              dataKey="positive"
++              stackId="s"
++              fill="var(--color-positive)"
++              stroke="hsl(var(--card))"
++              strokeWidth={1}
++              maxBarSize={40}
++            />
++            <Bar
++              dataKey="neutral"
++              stackId="s"
++              fill="var(--color-neutral)"
++              stroke="hsl(var(--card))"
++              strokeWidth={1}
++              maxBarSize={40}
++            />
++            <Bar
++              dataKey="negative"
++              stackId="s"
++              fill="var(--color-negative)"
++              stroke="hsl(var(--card))"
++              strokeWidth={1}
++              maxBarSize={40}
++              radius={[4, 4, 0, 0]}
++            />
++          </BarChart>
++        </ChartContainer>
++      </CardContent>
++    </Card>
++  );
++}
++
++/** Horizontal share-of-voice bars for the top publishing sources. */
++export function ShareOfVoice({ articles }: { articles: AnalyzedArticle[] }) {
++  const data = useMemo(() => {
++    const counts = new Map<string, number>();
++    for (const a of articles) {
++      counts.set(a.sourceName, (counts.get(a.sourceName) ?? 0) + 1);
++    }
++    return [...counts.entries()]
++      .sort((a, b) => b[1] - a[1])
++      .slice(0, 8)
++      .map(([source, count]) => ({ source, count }));
++  }, [articles]);
++
++  return (
++    <Card>
++      <CardHeader>
++        <CardTitle className="text-base">Share of voice</CardTitle>
++        <CardDescription>Top sources by mention count</CardDescription>
++      </CardHeader>
++      <CardContent>
++        <ChartContainer config={volumeConfig} className="h-56 w-full">
++          <BarChart
++            data={data}
++            layout="vertical"
++            margin={{ top: 4, right: 32, left: 8 }}
++          >
++            <CartesianGrid horizontal={false} strokeOpacity={0.25} />
++            <XAxis type="number" hide />
++            <YAxis
++              dataKey="source"
++              type="category"
++              tickLine={false}
++              axisLine={false}
++              width={120}
++              tick={{ fontSize: 11 }}
++            />
++            <ChartTooltip content={<ChartTooltipContent />} />
++            <Bar
++              dataKey="count"
++              fill="var(--color-count)"
++              radius={[0, 4, 4, 0]}
++              maxBarSize={14}
++              label={{
++                position: "right",
++                fill: "hsl(var(--muted-foreground))",
++                fontSize: 11,
++              }}
++            />
++          </BarChart>
++        </ChartContainer>
++      </CardContent>
++    </Card>
++  );
++}
++
++/** Language mix — fixed hue per language so filters never repaint it. */
++export function LanguageMix({ articles }: { articles: AnalyzedArticle[] }) {
++  const { data, config } = useMemo(() => {
++    const order: MonitorLanguage[] = ["ms", "en", "zh", "ta", "mixed"];
++    const counts = new Map<MonitorLanguage, number>();
++    for (const a of articles) {
++      counts.set(a.language, (counts.get(a.language) ?? 0) + 1);
++    }
++    const rows = order
++      .filter((l) => (counts.get(l) ?? 0) > 0)
++      .map((l) => ({
++        language: LANGUAGE_LABELS[l],
++        count: counts.get(l) ?? 0,
++        fill: LANGUAGE_COLORS[l],
++      }));
++    const cfg: ChartConfig = { count: { label: "Mentions" } };
++    return { data: rows, config: cfg };
++  }, [articles]);
++
++  return (
++    <Card>
++      <CardHeader>
++        <CardTitle className="text-base">Language mix</CardTitle>
++        <CardDescription>Mentions by language of coverage</CardDescription>
++      </CardHeader>
++      <CardContent>
++        <ChartContainer config={config} className="h-56 w-full">
++          <BarChart
++            data={data}
++            layout="vertical"
++            margin={{ top: 4, right: 32, left: 8 }}
++          >
++            <CartesianGrid horizontal={false} strokeOpacity={0.25} />
++            <XAxis type="number" hide />
++            <YAxis
++              dataKey="language"
++              type="category"
++              tickLine={false}
++              axisLine={false}
++              width={130}
++              tick={{ fontSize: 11 }}
++            />
++            <ChartTooltip content={<ChartTooltipContent />} />
++            <Bar
++              dataKey="count"
++              radius={[0, 4, 4, 0]}
++              maxBarSize={14}
++              label={{
++                position: "right",
++                fill: "hsl(var(--muted-foreground))",
++                fontSize: 11,
++              }}
++            />
++          </BarChart>
++        </ChartContainer>
++      </CardContent>
++    </Card>
++  );
++}
+diff --git a/src/components/monitor/monitor-dashboard.tsx b/src/components/monitor/monitor-dashboard.tsx
+new file mode 100644
+index 0000000..66fb44b
+--- /dev/null
++++ b/src/components/monitor/monitor-dashboard.tsx
+@@ -0,0 +1,389 @@
++"use client";
++
++import { useCallback, useEffect, useMemo, useState } from "react";
++import { format } from "date-fns";
++import {
++  AlertTriangle,
++  Bookmark,
++  Loader2,
++  Newspaper,
++  RefreshCw,
++  Search,
++  X,
++} from "lucide-react";
++import { Badge } from "@/components/ui/badge";
++import { Button } from "@/components/ui/button";
++import {
++  Card,
++  CardContent,
++  CardDescription,
++  CardHeader,
++  CardTitle,
++} from "@/components/ui/card";
++import { Input } from "@/components/ui/input";
++import {
++  Select,
++  SelectContent,
++  SelectItem,
++  SelectTrigger,
++  SelectValue,
++} from "@/components/ui/select";
++import { Skeleton } from "@/components/ui/skeleton";
++import type {
++  AnalyzedArticle,
++  MonitorLanguage,
++  MonitorResponse,
++  SentimentLabel,
++} from "@/lib/monitor/types";
++import { ArticleFeed } from "./article-feed";
++import { LANGUAGE_LABELS } from "./colors";
++import {
++  LanguageMix,
++  SentimentTimeline,
++  ShareOfVoice,
++} from "./monitor-charts";
++
++const KEYWORDS_STORAGE_KEY = "my-media-monitor-keywords";
++
++function StatTile({
++  label,
++  value,
++  hint,
++}: {
++  label: string;
++  value: string;
++  hint?: string;
++}) {
++  return (
++    <Card>
++      <CardContent className="p-4">
++        <p className="text-xs uppercase tracking-wide text-muted-foreground">
++          {label}
++        </p>
++        <p className="mt-1 text-3xl font-bold text-foreground">{value}</p>
++        {hint && <p className="mt-1 text-xs text-muted-foreground">{hint}</p>}
++      </CardContent>
++    </Card>
++  );
++}
++
++export function MonitorDashboard() {
++  const [queryInput, setQueryInput] = useState("");
++  const [activeQuery, setActiveQuery] = useState("");
++  const [savedKeywords, setSavedKeywords] = useState<string[]>([]);
++  const [data, setData] = useState<MonitorResponse | null>(null);
++  const [loading, setLoading] = useState(true);
++  const [error, setError] = useState<string | null>(null);
++
++  const [langFilter, setLangFilter] = useState<MonitorLanguage | "all">("all");
++  const [sentimentFilter, setSentimentFilter] = useState<
++    SentimentLabel | "all"
++  >("all");
++
++  useEffect(() => {
++    try {
++      const raw = localStorage.getItem(KEYWORDS_STORAGE_KEY);
++      if (raw) setSavedKeywords(JSON.parse(raw));
++    } catch {
++      // localStorage unavailable (private mode) — tracking chips just won't persist.
++    }
++  }, []);
++
++  const persistKeywords = useCallback((keywords: string[]) => {
++    setSavedKeywords(keywords);
++    try {
++      localStorage.setItem(KEYWORDS_STORAGE_KEY, JSON.stringify(keywords));
++    } catch {
++      // Non-fatal.
++    }
++  }, []);
++
++  const load = useCallback(async (query: string) => {
++    setLoading(true);
++    setError(null);
++    try {
++      const res = await fetch(
++        `/api/monitor?q=${encodeURIComponent(query)}`,
++        { cache: "no-store" }
++      );
++      if (!res.ok) throw new Error(`Request failed (HTTP ${res.status})`);
++      setData((await res.json()) as MonitorResponse);
++    } catch (err) {
++      setError(err instanceof Error ? err.message : "Something went wrong");
++    } finally {
++      setLoading(false);
++    }
++  }, []);
++
++  useEffect(() => {
++    load(activeQuery);
++  }, [activeQuery, load]);
++
++  const runSearch = (q: string) => {
++    setQueryInput(q);
++    setActiveQuery(q.trim());
++  };
++
++  const trackKeyword = () => {
++    const q = queryInput.trim();
++    if (!q || savedKeywords.includes(q)) return;
++    persistKeywords([...savedKeywords, q]);
++  };
++
++  const articles = useMemo(() => {
++    let list: AnalyzedArticle[] = data?.articles ?? [];
++    if (langFilter !== "all") list = list.filter((a) => a.language === langFilter);
++    if (sentimentFilter !== "all")
++      list = list.filter((a) => a.sentiment.label === sentimentFilter);
++    return list;
++  }, [data, langFilter, sentimentFilter]);
++
++  const stats = useMemo(() => {
++    const total = articles.length;
++    const pos = articles.filter((a) => a.sentiment.label === "positive").length;
++    const neg = articles.filter((a) => a.sentiment.label === "negative").length;
++    const net = total === 0 ? 0 : Math.round(((pos - neg) / total) * 100);
++    const sourcesOk = data?.sources.filter((s) => s.ok && s.itemCount > 0) ?? [];
++    return { total, pos, neg, net, sourcesOk: sourcesOk.length };
++  }, [articles, data]);
++
++  const failedSources = data?.sources.filter((s) => !s.ok) ?? [];
++
++  return (
++    <div className="space-y-6">
++      {/* ── Search & tracked keywords ─────────────────────────────── */}
++      <Card>
++        <CardHeader className="pb-4">
++          <CardTitle className="flex items-center gap-2 text-lg">
++            <Newspaper className="h-5 w-5 text-primary" aria-hidden />
++            Keyword monitor
++          </CardTitle>
++          <CardDescription>
++            Track a brand, name or isu semasa across Malaysian media — BM,
++            English, Chinese and Tamil outlets, plus Google News MY. Separate
++            alternatives with commas (e.g. “banjir, flood”).
++          </CardDescription>
++        </CardHeader>
++        <CardContent className="space-y-3">
++          <form
++            className="flex flex-col gap-2 sm:flex-row"
++            onSubmit={(e) => {
++              e.preventDefault();
++              setActiveQuery(queryInput.trim());
++            }}
++          >
++            <div className="relative flex-1">
++              <Search
++                className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground"
++                aria-hidden
++              />
++              <Input
++                value={queryInput}
++                onChange={(e) => setQueryInput(e.target.value)}
++                placeholder="e.g. Petronas, subsidi diesel, banjir…"
++                className="pl-9"
++                aria-label="Search keyword"
++              />
++            </div>
++            <div className="flex gap-2">
++              <Button type="submit" disabled={loading}>
++                {loading ? (
++                  <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden />
++                ) : (
++                  <Search className="mr-2 h-4 w-4" aria-hidden />
++                )}
++                Search
++              </Button>
++              <Button
++                type="button"
++                variant="secondary"
++                onClick={trackKeyword}
++                disabled={!queryInput.trim()}
++              >
++                <Bookmark className="mr-2 h-4 w-4" aria-hidden />
++                Track
++              </Button>
++            </div>
++          </form>
++
++          {savedKeywords.length > 0 && (
++            <div className="flex flex-wrap items-center gap-2">
++              <span className="text-xs text-muted-foreground">Tracked:</span>
++              {savedKeywords.map((kw) => (
++                <Badge
++                  key={kw}
++                  variant={kw === activeQuery ? "default" : "secondary"}
++                  className="cursor-pointer gap-1"
++                  onClick={() => runSearch(kw)}
++                >
++                  {kw}
++                  <button
++                    type="button"
++                    aria-label={`Stop tracking ${kw}`}
++                    onClick={(e) => {
++                      e.stopPropagation();
++                      persistKeywords(savedKeywords.filter((k) => k !== kw));
++                    }}
++                  >
++                    <X className="h-3 w-3" aria-hidden />
++                  </button>
++                </Badge>
++              ))}
++            </div>
++          )}
++        </CardContent>
++      </Card>
++
++      {/* ── Filters row ───────────────────────────────────────────── */}
++      <div className="flex flex-wrap items-center gap-2">
++        <Select
++          value={langFilter}
++          onValueChange={(v) => setLangFilter(v as MonitorLanguage | "all")}
++        >
++          <SelectTrigger className="w-44" aria-label="Filter by language">
++            <SelectValue />
++          </SelectTrigger>
++          <SelectContent>
++            <SelectItem value="all">All languages</SelectItem>
++            {(Object.keys(LANGUAGE_LABELS) as MonitorLanguage[]).map((l) => (
++              <SelectItem key={l} value={l}>
++                {LANGUAGE_LABELS[l]}
++              </SelectItem>
++            ))}
++          </SelectContent>
++        </Select>
++        <Select
++          value={sentimentFilter}
++          onValueChange={(v) =>
++            setSentimentFilter(v as SentimentLabel | "all")
++          }
++        >
++          <SelectTrigger className="w-40" aria-label="Filter by sentiment">
++            <SelectValue />
++          </SelectTrigger>
++          <SelectContent>
++            <SelectItem value="all">All sentiment</SelectItem>
++            <SelectItem value="positive">Positive</SelectItem>
++            <SelectItem value="neutral">Neutral</SelectItem>
++            <SelectItem value="negative">Negative</SelectItem>
++          </SelectContent>
++        </Select>
++        <div className="ml-auto flex items-center gap-2 text-xs text-muted-foreground">
++          {data && (
++            <span>
++              Updated {format(new Date(data.fetchedAt), "d MMM, HH:mm")}
++            </span>
++          )}
++          <Button
++            variant="outline"
++            size="sm"
++            onClick={() => load(activeQuery)}
++            disabled={loading}
++          >
++            <RefreshCw
++              className={loading ? "h-3.5 w-3.5 animate-spin" : "h-3.5 w-3.5"}
++              aria-hidden
++            />
++            <span className="ml-1.5">Refresh</span>
++          </Button>
++        </div>
++      </div>
++
++      {error && (
++        <Card className="border-destructive/50">
++          <CardContent className="flex items-center gap-2 py-4 text-sm">
++            <AlertTriangle className="h-4 w-4 text-destructive" aria-hidden />
++            {error} — check your connection and refresh.
++          </CardContent>
++        </Card>
++      )}
++
++      {/* ── Stat tiles ────────────────────────────────────────────── */}
++      {loading && !data ? (
++        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
++          {Array.from({ length: 4 }).map((_, i) => (
++            <Skeleton key={i} className="h-24" />
++          ))}
++        </div>
++      ) : (
++        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
++          <StatTile
++            label="Mentions (7 days)"
++            value={String(stats.total)}
++            hint={activeQuery ? `for “${activeQuery}”` : "all coverage"}
++          />
++          <StatTile
++            label="Net sentiment"
++            value={`${stats.net > 0 ? "+" : ""}${stats.net}%`}
++            hint={`${stats.pos} positive · ${stats.neg} negative`}
++          />
++          <StatTile
++            label="Negative mentions"
++            value={String(stats.neg)}
++            hint="potential issues to review"
++          />
++          <StatTile
++            label="Sources reporting"
++            value={String(stats.sourcesOk)}
++            hint={
++              failedSources.length > 0
++                ? `${failedSources.length} feed(s) unreachable`
++                : "all feeds healthy"
++            }
++          />
++        </div>
++      )}
++
++      {/* ── Charts ────────────────────────────────────────────────── */}
++      {loading && !data ? (
++        <div className="grid gap-4 lg:grid-cols-3">
++          {Array.from({ length: 3 }).map((_, i) => (
++            <Skeleton key={i} className="h-72" />
++          ))}
++        </div>
++      ) : (
++        articles.length > 0 && (
++          <div className="grid gap-4 lg:grid-cols-3">
++            <SentimentTimeline articles={articles} />
++            <ShareOfVoice articles={articles} />
++            <LanguageMix articles={articles} />
++          </div>
++        )
++      )}
++
++      {/* ── Feed ──────────────────────────────────────────────────── */}
++      <div>
++        <h2 className="mb-3 text-lg font-semibold text-foreground">
++          Latest mentions{" "}
++          <span className="text-sm font-normal text-muted-foreground">
++            ({articles.length})
++          </span>
++        </h2>
++        {loading && !data ? (
++          <div className="space-y-3">
++            {Array.from({ length: 5 }).map((_, i) => (
++              <Skeleton key={i} className="h-28" />
++            ))}
++          </div>
++        ) : (
++          <ArticleFeed articles={articles} />
++        )}
++      </div>
++
++      {failedSources.length > 0 && (
++        <details className="text-xs text-muted-foreground">
++          <summary className="cursor-pointer">
++            {failedSources.length} feed(s) could not be reached this refresh
++          </summary>
++          <ul className="mt-2 list-inside list-disc space-y-1">
++            {failedSources.map((s) => (
++              <li key={s.sourceId}>
++                {s.sourceName} — {s.error}
++              </li>
++            ))}
++          </ul>
++        </details>
++      )}
++    </div>
++  );
++}
+diff --git a/src/components/site-header.tsx b/src/components/site-header.tsx
+index bea67ae..ecad271 100644
+--- a/src/components/site-header.tsx
++++ b/src/components/site-header.tsx
+@@ -25,6 +25,7 @@ export function SiteHeader() {
+     { href: "#gallery", label: t.gallery },
+     { href: "#contact", label: t.contact },
+     { href: "/training", label: t.trainingHub },
++    { href: "/monitor", label: t.mediaMonitor },
+   ];
+ 
+   useEffect(() => {
+diff --git a/src/lib/monitor/analyze.ts b/src/lib/monitor/analyze.ts
+new file mode 100644
+index 0000000..af0a43e
+--- /dev/null
++++ b/src/lib/monitor/analyze.ts
+@@ -0,0 +1,44 @@
++import { detectLanguage } from "./language";
++import { analyzeSentiment } from "./sentiment";
++import { extractEntities } from "./entities";
++import type { AnalyzedArticle, FeedItem } from "./types";
++
++export function analyzeArticle(item: FeedItem): AnalyzedArticle {
++  const text = `${item.title}. ${item.description}`;
++  return {
++    ...item,
++    language: detectLanguage(text),
++    sentiment: analyzeSentiment(text),
++    entities: extractEntities(text),
++  };
++}
++
++/** Case-insensitive keyword filter; comma separates OR terms. */
++export function matchesQuery(item: FeedItem, query: string): boolean {
++  const terms = query
++    .split(",")
++    .map((t) => t.trim().toLowerCase())
++    .filter(Boolean);
++  if (terms.length === 0) return true;
++  const haystack = `${item.title} ${item.description}`.toLowerCase();
++  return terms.some((t) => haystack.includes(t));
++}
++
++/** Dedupe near-identical stories (same link, or same normalised title). */
++export function dedupeArticles<T extends FeedItem>(items: T[]): T[] {
++  const seen = new Set<string>();
++  const out: T[] = [];
++  for (const item of items) {
++    const titleKey = item.title
++      .toLowerCase()
++      .replace(/[^a-z0-9一-鿿]+/g, " ")
++      .trim()
++      .slice(0, 80);
++    const linkKey = item.link.replace(/[?#].*$/, "");
++    if (seen.has(titleKey) || seen.has(linkKey)) continue;
++    seen.add(titleKey);
++    seen.add(linkKey);
++    out.push(item);
++  }
++  return out;
++}
+diff --git a/src/lib/monitor/entities.ts b/src/lib/monitor/entities.ts
+new file mode 100644
+index 0000000..7e4acdd
+--- /dev/null
++++ b/src/lib/monitor/entities.ts
+@@ -0,0 +1,145 @@
++import type { EntityMatch, EntityType } from "./types";
++
++/**
++ * Dictionary-based recognition of entities that matter in Malaysian media:
++ * coalitions and parties, government bodies (with BM/EN alias pairs like
++ * KWSP/EPF and SPRM/MACC), GLCs and major brands, states and cities, and
++ * recurring national issues. Aliases map to one canonical name so mentions
++ * aggregate correctly across languages.
++ */
++
++interface EntityDef {
++  name: string;
++  type: EntityType;
++  aliases: string[];
++}
++
++const ENTITIES: EntityDef[] = [
++  // ── Coalitions & parties ─────────────────────────────────────────────
++  { name: "Pakatan Harapan", type: "party", aliases: ["pakatan harapan"] },
++  { name: "Barisan Nasional", type: "party", aliases: ["barisan nasional"] },
++  { name: "Perikatan Nasional", type: "party", aliases: ["perikatan nasional"] },
++  { name: "UMNO", type: "party", aliases: ["umno"] },
++  { name: "PAS", type: "party", aliases: ["pas"] },
++  { name: "DAP", type: "party", aliases: ["dap"] },
++  { name: "PKR", type: "party", aliases: ["pkr", "keadilan"] },
++  { name: "Bersatu", type: "party", aliases: ["bersatu", "ppbm"] },
++  { name: "Amanah", type: "party", aliases: ["amanah"] },
++  { name: "MCA", type: "party", aliases: ["mca"] },
++  { name: "MIC", type: "party", aliases: ["mic"] },
++  { name: "GPS", type: "party", aliases: ["gps", "gabungan parti sarawak"] },
++  { name: "GRS", type: "party", aliases: ["grs", "gabungan rakyat sabah"] },
++  { name: "Warisan", type: "party", aliases: ["warisan"] },
++  { name: "MUDA", type: "party", aliases: ["muda"] },
++
++  // ── Government & agencies ────────────────────────────────────────────
++  { name: "PDRM (Police)", type: "government", aliases: ["pdrm", "polis diraja", "royal malaysia police"] },
++  { name: "SPRM (MACC)", type: "government", aliases: ["sprm", "macc", "suruhanjaya pencegahan rasuah"] },
++  { name: "KWSP (EPF)", type: "government", aliases: ["kwsp", "epf", "kumpulan wang simpanan pekerja"] },
++  { name: "PERKESO (SOCSO)", type: "government", aliases: ["perkeso", "socso"] },
++  { name: "LHDN (IRB)", type: "government", aliases: ["lhdn", "hasil dalam negeri", "inland revenue board"] },
++  { name: "Bank Negara Malaysia", type: "government", aliases: ["bank negara", "bnm"] },
++  { name: "JPJ", type: "government", aliases: ["jpj", "jabatan pengangkutan jalan"] },
++  { name: "JAKIM", type: "government", aliases: ["jakim"] },
++  { name: "KKM (MOH)", type: "government", aliases: ["kkm", "kementerian kesihatan", "health ministry"] },
++  { name: "KPM (MOE)", type: "government", aliases: ["kpm", "kementerian pendidikan", "education ministry"] },
++  { name: "MCMC (SKMM)", type: "government", aliases: ["mcmc", "skmm", "suruhanjaya komunikasi"] },
++  { name: "DBKL", type: "government", aliases: ["dbkl", "dewan bandaraya kuala lumpur"] },
++  { name: "MARA", type: "government", aliases: ["mara"] },
++  { name: "FELDA", type: "government", aliases: ["felda"] },
++  { name: "Parlimen", type: "government", aliases: ["parlimen", "parliament", "dewan rakyat", "dewan negara"] },
++
++  // ── GLCs & major companies ───────────────────────────────────────────
++  { name: "Petronas", type: "company", aliases: ["petronas"] },
++  { name: "Khazanah Nasional", type: "company", aliases: ["khazanah"] },
++  { name: "PNB", type: "company", aliases: ["pnb", "permodalan nasional"] },
++  { name: "Maybank", type: "company", aliases: ["maybank"] },
++  { name: "CIMB", type: "company", aliases: ["cimb"] },
++  { name: "Public Bank", type: "company", aliases: ["public bank"] },
++  { name: "Tenaga Nasional", type: "company", aliases: ["tenaga nasional", "tnb"] },
++  { name: "Telekom Malaysia", type: "company", aliases: ["telekom malaysia", "unifi"] },
++  { name: "Axiata", type: "company", aliases: ["axiata"] },
++  { name: "Maxis", type: "company", aliases: ["maxis"] },
++  { name: "CelcomDigi", type: "company", aliases: ["celcomdigi", "celcom", "digi"] },
++  { name: "AirAsia", type: "company", aliases: ["airasia", "capital a"] },
++  { name: "Malaysia Airlines", type: "company", aliases: ["malaysia airlines", "mas airlines"] },
++  { name: "Genting", type: "company", aliases: ["genting"] },
++  { name: "Sime Darby", type: "company", aliases: ["sime darby"] },
++  { name: "Proton", type: "company", aliases: ["proton"] },
++  { name: "Perodua", type: "company", aliases: ["perodua"] },
++  { name: "Grab", type: "company", aliases: ["grab"] },
++  { name: "Shopee", type: "company", aliases: ["shopee"] },
++  { name: "Lazada", type: "company", aliases: ["lazada"] },
++  { name: "Touch 'n Go", type: "company", aliases: ["touch n go", "touch 'n go", "tng ewallet"] },
++  { name: "Prasarana (Rapid KL)", type: "company", aliases: ["prasarana", "rapid kl", "rapidkl"] },
++
++  // ── States & major cities ────────────────────────────────────────────
++  { name: "Kuala Lumpur", type: "place", aliases: ["kuala lumpur"] },
++  { name: "Putrajaya", type: "place", aliases: ["putrajaya"] },
++  { name: "Selangor", type: "place", aliases: ["selangor", "shah alam", "petaling jaya", "klang", "subang"] },
++  { name: "Johor", type: "place", aliases: ["johor", "johor bahru"] },
++  { name: "Pulau Pinang", type: "place", aliases: ["penang", "pulau pinang", "george town"] },
++  { name: "Perak", type: "place", aliases: ["perak", "ipoh"] },
++  { name: "Kedah", type: "place", aliases: ["kedah", "alor setar", "langkawi"] },
++  { name: "Kelantan", type: "place", aliases: ["kelantan", "kota bharu"] },
++  { name: "Terengganu", type: "place", aliases: ["terengganu", "kuala terengganu"] },
++  { name: "Pahang", type: "place", aliases: ["pahang", "kuantan", "cameron highlands"] },
++  { name: "Negeri Sembilan", type: "place", aliases: ["negeri sembilan", "seremban"] },
++  { name: "Melaka", type: "place", aliases: ["melaka", "malacca"] },
++  { name: "Perlis", type: "place", aliases: ["perlis", "kangar"] },
++  { name: "Sabah", type: "place", aliases: ["sabah", "kota kinabalu", "sandakan", "tawau"] },
++  { name: "Sarawak", type: "place", aliases: ["sarawak", "kuching", "miri", "sibu", "bintulu"] },
++  { name: "Labuan", type: "place", aliases: ["labuan"] },
++
++  // ── Recurring national issues ────────────────────────────────────────
++  { name: "Subsidi / Subsidy", type: "issue", aliases: ["subsidi", "subsidy", "diesel subsidy", "ron95"] },
++  { name: "SST / Cukai", type: "issue", aliases: ["sst", "cukai jualan", "sales tax", "service tax"] },
++  { name: "Ringgit", type: "issue", aliases: ["ringgit"] },
++  { name: "Banjir (Floods)", type: "issue", aliases: ["banjir", "flood", "floods"] },
++  { name: "Jerebu (Haze)", type: "issue", aliases: ["jerebu", "haze"] },
++  { name: "Tol (Tolls)", type: "issue", aliases: ["tol ", "toll"] },
++  { name: "Halal", type: "issue", aliases: ["halal"] },
++  { name: "1MDB", type: "issue", aliases: ["1mdb"] },
++  { name: "PTPTN", type: "issue", aliases: ["ptptn"] },
++  { name: "STR (Bantuan Tunai)", type: "issue", aliases: ["sumbangan tunai rahmah", "str ", "bantuan tunai"] },
++  { name: "MM2H", type: "issue", aliases: ["mm2h", "malaysia my second home"] },
++  { name: "PADU", type: "issue", aliases: ["padu"] },
++  { name: "Harga Barang (Cost of Living)", type: "issue", aliases: ["harga barang", "kos sara hidup", "cost of living"] },
++  { name: "Dadah (Drugs)", type: "issue", aliases: ["dadah", "drug bust", "drug trafficking"] },
++  { name: "Scam / Penipuan Online", type: "issue", aliases: ["scam", "macau scam", "penipuan dalam talian", "online fraud"] },
++];
++
++// Short, ambiguous acronyms only count when they appear in uppercase in the
++// original text — "pas" the word vs "PAS" the party, "mas" vs "MAS".
++const UPPERCASE_ONLY = new Set([
++  "pas", "dap", "gps", "grs", "muda", "mca", "mic", "pkr", "mara", "padu",
++  "str ", "tol ",
++]);
++
++function containsAlias(
++  lowerText: string,
++  rawText: string,
++  alias: string
++): boolean {
++  if (UPPERCASE_ONLY.has(alias)) {
++    return new RegExp(`\\b${alias.trim().toUpperCase()}\\b`).test(rawText);
++  }
++  // Word-boundary match; aliases are plain words so escaping isn't needed
++  // beyond the apostrophe case.
++  const escaped = alias.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
++  return new RegExp(`(^|[^a-z0-9])${escaped}([^a-z0-9]|$)`, "i").test(
++    lowerText
++  );
++}
++
++export function extractEntities(text: string): EntityMatch[] {
++  const lower = text.toLowerCase();
++  const matches: EntityMatch[] = [];
++  for (const def of ENTITIES) {
++    if (def.aliases.some((a) => containsAlias(lower, text, a))) {
++      matches.push({ name: def.name, type: def.type });
++      if (matches.length >= 10) break;
++    }
++  }
++  return matches;
++}
+diff --git a/src/lib/monitor/language.ts b/src/lib/monitor/language.ts
+new file mode 100644
+index 0000000..c99bbf7
+--- /dev/null
++++ b/src/lib/monitor/language.ts
+@@ -0,0 +1,64 @@
++import type { MonitorLanguage } from "./types";
++
++/**
++ * Lightweight language detection tuned for the Malaysian media mix:
++ * Bahasa Malaysia, English, Chinese and Tamil — plus "mixed" for the
++ * bahasa rojak / Manglish register common on social-leaning outlets.
++ */
++
++const MALAY_STOPWORDS = new Set([
++  "yang", "dan", "untuk", "dengan", "kepada", "daripada", "dalam", "pada",
++  "adalah", "ialah", "ini", "itu", "tidak", "tak", "akan", "telah", "sudah",
++  "belum", "boleh", "kerana", "seperti", "juga", "lagi", "bagi", "oleh",
++  "atau", "jika", "kata", "berkata", "mengenai", "terhadap", "selepas",
++  "sebelum", "ketika", "semasa", "antara", "iaitu", "ini", "kami", "kita",
++  "mereka", "beliau", "anda", "saya", "tersebut", "berkenaan", "sahaja",
++  "hanya", "paling", "sangat", "amat", "para", "setiap", "semua", "ramai",
++]);
++
++const ENGLISH_STOPWORDS = new Set([
++  "the", "and", "for", "with", "that", "this", "from", "have", "has",
++  "was", "were", "are", "will", "would", "been", "their", "they", "his",
++  "her", "its", "not", "but", "after", "before", "when", "while", "about",
++  "over", "under", "more", "than", "also", "into", "out", "who", "which",
++  "what", "there", "where", "says", "said", "can", "could", "should",
++]);
++
++export function detectLanguage(text: string): MonitorLanguage {
++  const chars = [...text];
++  if (chars.length === 0) return "en";
++
++  let cjk = 0;
++  let tamil = 0;
++  for (const ch of chars) {
++    const code = ch.codePointAt(0)!;
++    if (
++      (code >= 0x4e00 && code <= 0x9fff) ||
++      (code >= 0x3400 && code <= 0x4dbf)
++    ) {
++      cjk++;
++    } else if (code >= 0x0b80 && code <= 0x0bff) {
++      tamil++;
++    }
++  }
++  if (cjk / chars.length > 0.1) return "zh";
++  if (tamil / chars.length > 0.1) return "ta";
++
++  const tokens = text
++    .toLowerCase()
++    .split(/[^a-z']+/)
++    .filter(Boolean);
++  if (tokens.length === 0) return "en";
++
++  let msHits = 0;
++  let enHits = 0;
++  for (const t of tokens) {
++    if (MALAY_STOPWORDS.has(t)) msHits++;
++    else if (ENGLISH_STOPWORDS.has(t)) enHits++;
++  }
++
++  // Both languages present in force → bahasa rojak / Manglish.
++  if (msHits >= 2 && enHits >= 2) return "mixed";
++  if (msHits > enHits) return "ms";
++  return "en";
++}
+diff --git a/src/lib/monitor/rss.ts b/src/lib/monitor/rss.ts
+new file mode 100644
+index 0000000..6117e88
+--- /dev/null
++++ b/src/lib/monitor/rss.ts
+@@ -0,0 +1,137 @@
++import type { FeedItem, MonitorSource } from "./types";
++
++/**
++ * Minimal dependency-free RSS 2.0 / Atom parser.
++ *
++ * Malaysian outlets publish a mix of RSS 2.0 (WordPress sites like FMT,
++ * Utusan, Sin Chew), Drupal feeds (NST, Berita Harian) and Atom (Reddit).
++ * This covers the common shapes of all three without pulling in an XML
++ * dependency — feeds are fetched server-side, so malformed input just
++ * yields fewer items, never a crash.
++ */
++
++const NAMED_ENTITIES: Record<string, string> = {
++  amp: "&",
++  lt: "<",
++  gt: ">",
++  quot: '"',
++  apos: "'",
++  nbsp: " ",
++  ndash: "–",
++  mdash: "—",
++  hellip: "…",
++  rsquo: "’",
++  lsquo: "‘",
++  rdquo: "”",
++  ldquo: "“",
++};
++
++export function decodeEntities(text: string): string {
++  return text
++    .replace(/&#x([0-9a-fA-F]+);/g, (_, hex) =>
++      String.fromCodePoint(parseInt(hex, 16))
++    )
++    .replace(/&#(\d+);/g, (_, dec) => String.fromCodePoint(parseInt(dec, 10)))
++    .replace(/&([a-zA-Z]+);/g, (m, name) => NAMED_ENTITIES[name] ?? m);
++}
++
++export function stripHtml(html: string): string {
++  // Decode first: Atom often ships entity-escaped HTML (&lt;p&gt;…), which
++  // must become real tags before they can be stripped.
++  return decodeEntities(html.replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, "$1"))
++    .replace(/<(script|style)[\s\S]*?<\/\1>/gi, " ")
++    .replace(/<[^>]+>/g, " ")
++    .replace(/\s+/g, " ")
++    .trim();
++}
++
++function firstTag(block: string, tags: string[]): string | null {
++  for (const tag of tags) {
++    const re = new RegExp(
++      `<${tag}(?:\\s[^>]*)?>([\\s\\S]*?)<\\/${tag}>`,
++      "i"
++    );
++    const m = block.match(re);
++    if (m) {
++      const inner = m[1].replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, "$1").trim();
++      if (inner) return inner;
++    }
++  }
++  return null;
++}
++
++/** Atom links live in the href attribute: <link rel="alternate" href="..."/> */
++function atomLink(block: string): string | null {
++  const links = block.match(/<link\b[^>]*>/gi) ?? [];
++  let fallback: string | null = null;
++  for (const tag of links) {
++    const href = tag.match(/href=["']([^"']+)["']/i)?.[1];
++    if (!href) continue;
++    const rel = tag.match(/rel=["']([^"']+)["']/i)?.[1];
++    if (!rel || rel === "alternate") return decodeEntities(href);
++    fallback = fallback ?? decodeEntities(href);
++  }
++  return fallback;
++}
++
++function parseDate(raw: string | null): string | null {
++  if (!raw) return null;
++  const d = new Date(decodeEntities(raw).trim());
++  return isNaN(d.getTime()) ? null : d.toISOString();
++}
++
++function parseBlock(block: string, source: MonitorSource): FeedItem | null {
++  const title = firstTag(block, ["title"]);
++  if (!title) return null;
++
++  let link = firstTag(block, ["link"]);
++  // RSS <link> holds text content; Atom <link/> is self-closing with href.
++  if (!link || link.startsWith("<")) link = atomLink(block);
++  if (!link) link = firstTag(block, ["guid"]);
++  if (!link || !/^https?:\/\//i.test(link.trim())) return null;
++
++  const description =
++    firstTag(block, ["description", "summary", "content:encoded", "content"]) ??
++    "";
++  const publishedAt = parseDate(
++    firstTag(block, ["pubDate", "published", "updated", "dc:date"])
++  );
++
++  // Google News appends " - Outlet Name" to titles and carries the outlet
++  // in a <source> tag — surface the real outlet instead of "Google News".
++  let sourceName = source.name;
++  let cleanTitle = stripHtml(title);
++  if (source.category === "aggregator") {
++    const outlet = firstTag(block, ["source"]);
++    if (outlet) {
++      sourceName = stripHtml(outlet);
++      const suffix = ` - ${sourceName}`;
++      if (cleanTitle.endsWith(suffix)) {
++        cleanTitle = cleanTitle.slice(0, -suffix.length).trim();
++      }
++    }
++  }
++
++  return {
++    title: cleanTitle,
++    link: decodeEntities(link.trim()),
++    description: stripHtml(description).slice(0, 500),
++    publishedAt,
++    sourceId: source.id,
++    sourceName,
++  };
++}
++
++export function parseFeed(xml: string, source: MonitorSource): FeedItem[] {
++  const blocks =
++    xml.match(/<item[\s>][\s\S]*?<\/item>/gi) ??
++    xml.match(/<entry[\s>][\s\S]*?<\/entry>/gi) ??
++    [];
++  const items: FeedItem[] = [];
++  for (const block of blocks) {
++    const item = parseBlock(block, source);
++    if (item) items.push(item);
++    if (items.length >= 50) break;
++  }
++  return items;
++}
+diff --git a/src/lib/monitor/sentiment.ts b/src/lib/monitor/sentiment.ts
+new file mode 100644
+index 0000000..14bd10e
+--- /dev/null
++++ b/src/lib/monitor/sentiment.ts
+@@ -0,0 +1,161 @@
++import type { SentimentResult } from "./types";
++
++/**
++ * Lexicon-based sentiment scoring built for Malaysian media text.
++ *
++ * Headlines and RSS summaries mix Bahasa Malaysia, English, Manglish slang
++ * and Chinese, so the lexicon covers all four registers. Scoring handles
++ * BM negators (tak/tidak/bukan/jangan) and intensifiers (memang/sangat/
++ * gila/giler) with a two-token negation window — a deliberate trade-off:
++ * transparent and free to run, rather than model-grade accuracy.
++ */
++
++const POSITIVE: Record<string, number> = {
++  // English
++  good: 1, great: 2, excellent: 2, best: 2, win: 2, wins: 2, won: 2,
++  success: 2, successful: 2, growth: 1, profit: 1, profits: 1, boost: 1,
++  improve: 1, improved: 1, improves: 1, improvement: 1, award: 1, awarded: 1,
++  praise: 2, praised: 2, support: 1, supports: 1, benefit: 1, benefits: 1,
++  strong: 1, stronger: 1, record: 1, surge: 1, gain: 1, gains: 1, rise: 1,
++  rises: 1, recovery: 1, recover: 1, breakthrough: 2, milestone: 1,
++  free: 1, safe: 1, safer: 1, peaceful: 1, thriving: 2, upgraded: 1,
++  approved: 1, launch: 1, launched: 1, expands: 1, expansion: 1,
++  celebrate: 1, celebrates: 1, historic: 1, proud: 1, happy: 1,
++  // Bahasa Malaysia
++  baik: 1, bagus: 2, hebat: 2, cemerlang: 2, terbaik: 2, mantap: 2,
++  menarik: 1, berjaya: 2, kejayaan: 2, untung: 1, keuntungan: 1,
++  meningkat: 1, peningkatan: 1, pujian: 2, memuji: 2, sokongan: 1,
++  menyokong: 1, bantuan: 1, membantu: 1, selamat: 1, aman: 1, mesra: 1,
++  murah: 1, percuma: 1, cekap: 1, telus: 1, adil: 1, harapan: 1, maju: 1,
++  kemajuan: 1, lonjakan: 1, pulih: 1, pemulihan: 1, tahniah: 2, gembira: 1,
++  bangga: 1, kagum: 2, selesa: 1, lancar: 1, berkualiti: 1, canggih: 1,
++  mampan: 1, rancak: 1, positif: 1, kukuh: 1, pengiktirafan: 1,
++  penambahbaikan: 1, diluluskan: 1, kemenangan: 2, juara: 2, rezeki: 1,
++  // Manglish / rojak slang
++  syok: 2, best_giler: 2, padu: 2, power: 2, gempak: 2, steady: 1,
++  terbaik_bossku: 2, ngam: 1, cun: 2, onz: 1, mantul: 2,
++  // Chinese (matched as substrings for zh text)
++  好: 1, 成功: 2, 增长: 1, 上涨: 1, 佳: 1, 优秀: 2, 胜利: 2, 荣获: 2,
++  庆祝: 1, 突破: 1, 受惠: 1, 免费: 1,
++};
++
++const NEGATIVE: Record<string, number> = {
++  // English
++  bad: 1, worst: 2, fail: 2, fails: 2, failed: 2, failure: 2,
++  corruption: 2, scandal: 2, fraud: 2, scam: 2, crash: 2, crisis: 2,
++  protest: 1, protests: 1, loss: 1, losses: 1, debt: 1, arrested: 2,
++  charged: 1, jailed: 2, killed: 2, dead: 2, death: 2, deaths: 2,
++  flood: 2, floods: 2, fire: 1, haze: 1, accident: 1, decline: 1,
++  plunge: 2, slump: 2, warning: 1, threat: 1, danger: 1, dangerous: 1,
++  victim: 1, victims: 1, abuse: 2, misuse: 2, controversy: 1,
++  backlash: 2, outrage: 2, boycott: 1, strike: 1, layoff: 2, layoffs: 2,
++  shutdown: 1, delay: 1, delayed: 1, delays: 1, leak: 1, leaked: 1,
++  probe: 1, probed: 1, summons: 1, fined: 1, murder: 2, robbery: 2,
++  theft: 1, missing: 1, collapse: 2, expensive: 1, inflation: 1,
++  jobless: 2, unemployment: 1, angry: 1, disappointed: 1, worried: 1,
++  // Bahasa Malaysia
++  buruk: 1, teruk: 2, lemah: 1, gagal: 2, kegagalan: 2, masalah: 1,
++  rasuah: 2, korupsi: 2, skandal: 2, penipuan: 2, tipu: 2, ditipu: 2,
++  curi: 2, kecurian: 2, rompak: 2, rompakan: 2, rogol: 2, bunuh: 2,
++  pembunuhan: 2, kemalangan: 1, maut: 2, banjir: 2, kebakaran: 2,
++  jerebu: 1, denda: 1, kompaun: 1, saman: 1, tangkap: 1, ditangkap: 2,
++  ditahan: 2, dakwaan: 1, didakwa: 1, krisis: 2, kontroversi: 1,
++  bantahan: 1, protes: 1, mogok: 1, rugi: 1, kerugian: 1, hutang: 1,
++  mahal: 1, inflasi: 1, pengangguran: 1, marah: 1, kecewa: 1, sedih: 1,
++  takut: 1, bimbang: 1, risau: 1, ancaman: 1, bahaya: 1, merosot: 1,
++  kemerosotan: 1, jatuh: 1, kejatuhan: 1, terjejas: 1, mangsa: 1,
++  penyelewengan: 2, amanah_pecah: 2, salahguna: 2, memalukan: 2, malu: 1,
++  kecoh: 1, sesak: 1, lambat: 1, tergendala: 1, terbakar: 2, lemas: 2,
++  dadah: 1, penyeludupan: 2, pergaduhan: 1, samseng: 1, negatif: 1,
++  ragut: 2, pecah: 1, musnah: 2, darurat: 2, wabak: 2, keracunan: 2,
++  // Manglish / rojak slang
++  bodoh: 2, bangang: 2, hampeh: 2, menyampah: 2, sial: 2, kantoi: 2,
++  potong_stim: 1, cilaka: 2, mampus: 2, koyak: 1, kena_tipu: 2,
++  // Chinese
++  贪污: 2, 丑闻: 2, 失败: 2, 逮捕: 2, 被捕: 2, 涨价: 1, 水灾: 2,
++  车祸: 2, 死亡: 2, 火灾: 2, 亏损: 1, 诈骗: 2, 罪: 1, 危机: 2, 抗议: 1,
++};
++
++// Multi-word slang is stored with underscores; normalise text the same way.
++const PHRASES: Array<[RegExp, string]> = [
++  [/\bbest\s+giler?\b/g, "best_giler"],
++  [/\bterbaik\s+bossku\b/g, "terbaik_bossku"],
++  [/\bpotong\s+stim\b/g, "potong_stim"],
++  [/\bkena\s+tipu\b/g, "kena_tipu"],
++  [/\bpecah\s+amanah\b/g, "amanah_pecah"],
++  [/\bsalah\s+guna\b/g, "salahguna"],
++];
++
++const NEGATORS = new Set([
++  "not", "no", "never", "without", "n't",
++  "tak", "tidak", "bukan", "jangan", "tiada", "belum", "kurang",
++]);
++
++const INTENSIFIERS = new Set([
++  "very", "so", "really", "extremely", "super", "damn", "totally",
++  "memang", "sangat", "amat", "terlalu", "paling", "gila", "giler",
++  "betul", "sungguh", "teramat", "habis",
++]);
++
++const CJK_RE = /[一-鿿]/;
++
++function scoreChinese(text: string): { score: number; signals: string[] } {
++  let score = 0;
++  const signals: string[] = [];
++  for (const [term, w] of Object.entries(POSITIVE)) {
++    if (CJK_RE.test(term) && text.includes(term)) {
++      score += w;
++      signals.push(term);
++    }
++  }
++  for (const [term, w] of Object.entries(NEGATIVE)) {
++    if (CJK_RE.test(term) && text.includes(term)) {
++      score -= w;
++      signals.push(term);
++    }
++  }
++  return { score, signals };
++}
++
++export function analyzeSentiment(rawText: string): SentimentResult {
++  let text = rawText.toLowerCase();
++  for (const [re, replacement] of PHRASES) {
++    text = text.replace(re, replacement);
++  }
++
++  let score = 0;
++  const signals: string[] = [];
++
++  const tokens = text.split(/[^a-z_']+/).filter(Boolean);
++  for (let i = 0; i < tokens.length; i++) {
++    const token = tokens[i];
++    let weight = POSITIVE[token] ?? -(NEGATIVE[token] ?? 0);
++    if (weight === 0) continue;
++
++    // Negation window: "tak bagus", "not very good", "bukan mudah".
++    const prev1 = tokens[i - 1];
++    const prev2 = tokens[i - 2];
++    const negated =
++      (prev1 && NEGATORS.has(prev1)) ||
++      (prev2 && NEGATORS.has(prev2) && prev1 && INTENSIFIERS.has(prev1));
++    if (negated) weight = -weight;
++
++    if (prev1 && INTENSIFIERS.has(prev1)) weight *= 1.5;
++
++    score += weight;
++    signals.push(negated ? `${prev1} ${token}` : token);
++  }
++
++  if (CJK_RE.test(rawText)) {
++    const zh = scoreChinese(rawText);
++    score += zh.score;
++    signals.push(...zh.signals);
++  }
++
++  // Squash into [-1, 1]; ±2 raw score saturates most of the range.
++  const normalized = Math.max(-1, Math.min(1, score / 3));
++  const label =
++    normalized > 0.15 ? "positive" : normalized < -0.15 ? "negative" : "neutral";
++
++  return { label, score: Number(normalized.toFixed(3)), signals: signals.slice(0, 8) };
++}
+diff --git a/src/lib/monitor/sources.ts b/src/lib/monitor/sources.ts
+new file mode 100644
+index 0000000..bb24ea1
+--- /dev/null
++++ b/src/lib/monitor/sources.ts
+@@ -0,0 +1,242 @@
++import type { MonitorSource } from "./types";
++
++/**
++ * Curated Malaysian news sources with public RSS feeds.
++ *
++ * Every feed here is free to read — no API keys. Feeds occasionally go down
++ * or change URLs; the fetcher tolerates individual failures, so a broken
++ * entry degrades gracefully instead of breaking the dashboard.
++ */
++export const MONITOR_SOURCES: MonitorSource[] = [
++  // ── English mainstream ────────────────────────────────────────────────
++  {
++    id: "thestar",
++    name: "The Star",
++    feedUrl: "https://www.thestar.com.my/rss/News",
++    homepage: "https://www.thestar.com.my",
++    language: "en",
++    category: "mainstream",
++    region: "national",
++  },
++  {
++    id: "nst",
++    name: "New Straits Times",
++    feedUrl: "https://www.nst.com.my/feed",
++    homepage: "https://www.nst.com.my",
++    language: "en",
++    category: "mainstream",
++    region: "national",
++  },
++  {
++    id: "malaymail",
++    name: "Malay Mail",
++    feedUrl: "https://www.malaymail.com/feed/rss/malaysia",
++    homepage: "https://www.malaymail.com",
++    language: "en",
++    category: "online",
++    region: "national",
++  },
++  {
++    id: "fmt",
++    name: "Free Malaysia Today",
++    feedUrl: "https://www.freemalaysiatoday.com/feed/",
++    homepage: "https://www.freemalaysiatoday.com",
++    language: "en",
++    category: "online",
++    region: "national",
++  },
++  {
++    id: "malaysiakini-en",
++    name: "Malaysiakini (EN)",
++    feedUrl: "https://www.malaysiakini.com/rss/en/news.rss",
++    homepage: "https://www.malaysiakini.com",
++    language: "en",
++    category: "online",
++    region: "national",
++  },
++  {
++    id: "rakyatpost",
++    name: "The Rakyat Post",
++    feedUrl: "https://www.therakyatpost.com/feed/",
++    homepage: "https://www.therakyatpost.com",
++    language: "en",
++    category: "online",
++    region: "national",
++  },
++  {
++    id: "malaysianow",
++    name: "MalaysiaNow",
++    feedUrl: "https://www.malaysianow.com/feed",
++    homepage: "https://www.malaysianow.com",
++    language: "en",
++    category: "online",
++    region: "national",
++  },
++  {
++    id: "theedge",
++    name: "The Edge Malaysia",
++    feedUrl: "https://theedgemalaysia.com/mymalaysia.rss",
++    homepage: "https://theedgemalaysia.com",
++    language: "en",
++    category: "business",
++    region: "national",
++  },
++
++  // ── Bahasa Malaysia ───────────────────────────────────────────────────
++  {
++    id: "bharian",
++    name: "Berita Harian",
++    feedUrl: "https://www.bharian.com.my/feed",
++    homepage: "https://www.bharian.com.my",
++    language: "ms",
++    category: "mainstream",
++    region: "national",
++  },
++  {
++    id: "hmetro",
++    name: "Harian Metro",
++    feedUrl: "https://www.hmetro.com.my/feed",
++    homepage: "https://www.hmetro.com.my",
++    language: "ms",
++    category: "mainstream",
++    region: "national",
++  },
++  {
++    id: "utusan",
++    name: "Utusan Malaysia",
++    feedUrl: "https://www.utusan.com.my/feed/",
++    homepage: "https://www.utusan.com.my",
++    language: "ms",
++    category: "mainstream",
++    region: "national",
++  },
++  {
++    id: "kosmo",
++    name: "Kosmo!",
++    feedUrl: "https://www.kosmo.com.my/feed/",
++    homepage: "https://www.kosmo.com.my",
++    language: "ms",
++    category: "mainstream",
++    region: "national",
++  },
++  {
++    id: "astroawani",
++    name: "Astro Awani",
++    feedUrl: "https://rss.astroawani.com/rss/latest/public",
++    homepage: "https://www.astroawani.com",
++    language: "ms",
++    category: "mainstream",
++    region: "national",
++  },
++  {
++    id: "malaysiakini-bm",
++    name: "Malaysiakini (BM)",
++    feedUrl: "https://www.malaysiakini.com/rss/my/news.rss",
++    homepage: "https://www.malaysiakini.com/bm",
++    language: "ms",
++    category: "online",
++    region: "national",
++  },
++
++  // ── Chinese ───────────────────────────────────────────────────────────
++  {
++    id: "sinchew",
++    name: "Sin Chew Daily (星洲日报)",
++    feedUrl: "https://www.sinchew.com.my/feed/",
++    homepage: "https://www.sinchew.com.my",
++    language: "zh",
++    category: "mainstream",
++    region: "national",
++  },
++  {
++    id: "chinapress",
++    name: "China Press (中國報)",
++    feedUrl: "https://www.chinapress.com.my/feed/",
++    homepage: "https://www.chinapress.com.my",
++    language: "zh",
++    category: "mainstream",
++    region: "national",
++  },
++  {
++    id: "orientaldaily",
++    name: "Oriental Daily (東方日報)",
++    feedUrl: "https://www.orientaldaily.com.my/rss",
++    homepage: "https://www.orientaldaily.com.my",
++    language: "zh",
++    category: "mainstream",
++    region: "national",
++  },
++
++  // ── East Malaysia ─────────────────────────────────────────────────────
++  {
++    id: "borneopost",
++    name: "The Borneo Post",
++    feedUrl: "https://www.theborneopost.com/feed/",
++    homepage: "https://www.theborneopost.com",
++    language: "en",
++    category: "regional",
++    region: "sarawak",
++  },
++  {
++    id: "dailyexpress",
++    name: "Daily Express Sabah",
++    feedUrl: "https://www.dailyexpress.com.my/rss.php",
++    homepage: "https://www.dailyexpress.com.my",
++    language: "en",
++    category: "regional",
++    region: "sabah",
++  },
++
++  // ── Community / social pulse ──────────────────────────────────────────
++  {
++    id: "says",
++    name: "SAYS",
++    feedUrl: "https://says.com/my/rss",
++    homepage: "https://says.com/my",
++    language: "en",
++    category: "community",
++    region: "national",
++  },
++  {
++    id: "reddit-malaysia",
++    name: "r/malaysia",
++    feedUrl: "https://www.reddit.com/r/malaysia/.rss",
++    homepage: "https://www.reddit.com/r/malaysia",
++    language: "en",
++    category: "community",
++    region: "national",
++  },
++];
++
++/**
++ * Google News RSS scoped to Malaysia — used as keyword-search feeds so a
++ * tracked keyword still gets nationwide coverage beyond the curated list.
++ * `when:7d` keeps results inside the dashboard's 7-day window.
++ */
++export function googleNewsSources(query: string): MonitorSource[] {
++  const q = encodeURIComponent(`${query} when:7d`);
++  return [
++    {
++      id: "gnews-en",
++      name: "Google News MY (EN)",
++      feedUrl: `https://news.google.com/rss/search?q=${q}&hl=en-MY&gl=MY&ceid=MY:en`,
++      homepage: "https://news.google.com",
++      language: "en",
++      category: "aggregator",
++      region: "national",
++    },
++    {
++      id: "gnews-ms",
++      name: "Google News MY (BM)",
++      feedUrl: `https://news.google.com/rss/search?q=${q}&hl=ms-MY&gl=MY&ceid=MY:ms`,
++      homepage: "https://news.google.com",
++      language: "ms",
++      category: "aggregator",
++      region: "national",
++    },
++  ];
++}
++
++export function getSourceById(id: string): MonitorSource | undefined {
++  return MONITOR_SOURCES.find((s) => s.id === id);
++}
+diff --git a/src/lib/monitor/types.ts b/src/lib/monitor/types.ts
+new file mode 100644
+index 0000000..b71565f
+--- /dev/null
++++ b/src/lib/monitor/types.ts
+@@ -0,0 +1,73 @@
++export type MonitorLanguage = "ms" | "en" | "zh" | "ta" | "mixed";
++
++export type SentimentLabel = "positive" | "neutral" | "negative";
++
++export type SourceCategory =
++  | "mainstream"
++  | "online"
++  | "business"
++  | "regional"
++  | "aggregator"
++  | "community";
++
++export type SourceRegion = "national" | "sabah" | "sarawak";
++
++export interface MonitorSource {
++  id: string;
++  name: string;
++  feedUrl: string;
++  homepage: string;
++  language: MonitorLanguage;
++  category: SourceCategory;
++  region: SourceRegion;
++}
++
++export interface FeedItem {
++  title: string;
++  link: string;
++  description: string;
++  publishedAt: string | null;
++  sourceId: string;
++  sourceName: string;
++}
++
++export type EntityType =
++  | "party"
++  | "government"
++  | "company"
++  | "place"
++  | "issue";
++
++export interface EntityMatch {
++  name: string;
++  type: EntityType;
++}
++
++export interface SentimentResult {
++  label: SentimentLabel;
++  /** Normalised score in [-1, 1]. */
++  score: number;
++  /** Lexicon terms that drove the score, for transparency. */
++  signals: string[];
++}
++
++export interface AnalyzedArticle extends FeedItem {
++  language: MonitorLanguage;
++  sentiment: SentimentResult;
++  entities: EntityMatch[];
++}
++
++export interface SourceFetchStatus {
++  sourceId: string;
++  sourceName: string;
++  ok: boolean;
++  itemCount: number;
++  error?: string;
++}
++
++export interface MonitorResponse {
++  articles: AnalyzedArticle[];
++  sources: SourceFetchStatus[];
++  fetchedAt: string;
++  query: string;
++}
+diff --git a/src/lib/translations.ts b/src/lib/translations.ts
+index 1826b85..57b8de1 100644
+--- a/src/lib/translations.ts
++++ b/src/lib/translations.ts
+@@ -7,6 +7,7 @@ export const translations = {
+       gallery: "Gallery",
+       contact: "Contact",
+       trainingHub: "Training Hub",
++      mediaMonitor: "Media Monitor",
+       joinNow: "Join Now",
+     },
+     hero: {
+@@ -138,6 +139,7 @@ export const translations = {
+       gallery: "Galeri",
+       contact: "Hubungi",
+       trainingHub: "Hab Latihan",
++      mediaMonitor: "Pemantau Media",
+       joinNow: "Sertai Sekarang",
+     },
+     hero: {
+-- 
+2.43.0
+
