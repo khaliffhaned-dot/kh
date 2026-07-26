@@ -136,8 +136,14 @@ export function ContactSection() {
             <p className="text-gray-300" style={{ whiteSpace: 'pre-line' }}>
               {t.hours}
             </p>
-            <div className="mt-6 w-full h-64 bg-secondary rounded-2xl flex items-center justify-center">
-              <p className="text-gray-400">{t.mapPlaceholder}</p>
+            <div className="mt-6 w-full h-64 rounded-2xl overflow-hidden">
+              <iframe
+                title={t.mapPlaceholder}
+                className="w-full h-full border-0"
+                loading="lazy"
+                referrerPolicy="no-referrer-when-downgrade"
+                src={`https://maps.google.com/maps?q=${encodeURIComponent(t.address)}&output=embed`}
+              />
             </div>
           </div>
         </div>
