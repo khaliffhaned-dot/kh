@@ -35,6 +35,10 @@ export function SiteHeader() {
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
+  if (pathname?.startsWith("/semak")) {
+    return null;
+  }
+
   const NavLink = ({ href, label }: { href: string; label: string }) => {
     if (isHomePage && href.startsWith("#")) {
       return (
