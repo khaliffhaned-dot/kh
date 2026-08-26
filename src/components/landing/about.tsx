@@ -1,56 +1,55 @@
-import { PlaceHolderImages } from "@/lib/placeholder-images";
-import { Award, Shield } from "lucide-react";
-import Image from "next/image";
-import { useLanguage } from "@/context/language-context";
-import { translations } from "@/lib/translations";
+import { ShieldCheck, ClipboardCheck } from "lucide-react";
 
 export function AboutSection() {
-  const aboutImage = PlaceHolderImages.find((img) => img.id === "about-range");
-  const { language } = useLanguage();
-  const t = translations[language].about;
-
   return (
     <section id="about" className="py-20 md:py-32 bg-card">
       <div className="container mx-auto px-6">
         <div className="grid md:grid-cols-2 gap-12 items-center">
-          <div className="order-2 md:order-1">
+          <div>
             <h2 className="font-headline text-5xl md:text-6xl font-semibold text-white">
-              {t.titlePrefix} <span className="text-primary">WARAC</span>
+              What <span className="text-primary">NADI</span> Measures
             </h2>
             <p className="mt-4 text-gray-300">
-              {t.p1}
+              If you sell AVE as NADI&rsquo;s ROI, you kill the product
+              thesis. NADI&rsquo;s return is measured as objectives met and
+              incidents avoided under AMEC evaluation — not as
+              advertising-equivalent ringgit.
             </p>
             <p className="mt-4 text-gray-300">
-              {t.p2}
+              Client ROI has three layers: contribution (already in
+              product), risk cost avoided (the real wow), and efficiency
+              (hours and line items). Only the third layer is money, and it
+              stays conservative.
             </p>
-            <div className="mt-8 flex space-x-6">
+            <div className="mt-8 flex flex-wrap gap-6">
               <div className="flex items-center space-x-2">
-                <Award className="w-8 h-8 text-primary" />
+                <ShieldCheck className="w-8 h-8 text-primary shrink-0" />
                 <div>
-                  <p className="font-bold text-white">{t.feature1Title}</p>
-                  <p className="text-sm text-gray-400">{t.feature1Desc}</p>
+                  <p className="font-bold text-white">AMEC-Aligned</p>
+                  <p className="text-sm text-gray-400">Barcelona 4.0 evaluation</p>
                 </div>
               </div>
               <div className="flex items-center space-x-2">
-                <Shield className="w-8 h-8 text-primary" />
+                <ClipboardCheck className="w-8 h-8 text-primary shrink-0" />
                 <div>
-                  <p className="font-bold text-white">{t.feature2Title}</p>
-                  <p className="text-sm text-gray-400">{t.feature2Desc}</p>
+                  <p className="font-bold text-white">Board-Ready</p>
+                  <p className="text-sm text-gray-400">Locked PDF packs leadership uses</p>
                 </div>
               </div>
             </div>
           </div>
-          <div className="order-1 md:order-2">
-            {aboutImage && (
-              <Image
-                src={aboutImage.imageUrl}
-                alt={aboutImage.description}
-                width={600}
-                height={400}
-                className="rounded-2xl shadow-lg w-full h-auto object-cover"
-                data-ai-hint={aboutImage.imageHint}
-              />
-            )}
+          <div className="rounded-2xl border border-border bg-secondary/60 p-8">
+            <p className="font-headline text-2xl text-primary">One sentence for the board pack</p>
+            <p className="mt-4 text-lg text-gray-200">
+              &ldquo;NADI&rsquo;s return is measured as objectives met and
+              incidents avoided under AMEC evaluation — not as
+              advertising-equivalent ringgit.&rdquo;
+            </p>
+            <p className="mt-6 text-sm text-gray-400">
+              That is consistent with Evaluation, war room, holdings, and
+              trust centre. Teach buyers that sentence; then the scorecard is
+              just evidence.
+            </p>
           </div>
         </div>
       </div>

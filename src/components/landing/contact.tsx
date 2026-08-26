@@ -17,19 +17,22 @@ import {
   FormMessage,
 } from "../ui/form";
 import { Loader2 } from "lucide-react";
-import { useLanguage } from "@/context/language-context";
-import { translations } from "@/lib/translations";
+
+const contactSchema = z.object({
+  name: z.string().min(1, "Name is required"),
+  email: z.string().email("Invalid email address"),
+  message: z.string().min(10, "Message must be at least 10 characters"),
+});
+
+const sellerMetrics = [
+  { metric: "Paid pilots → conversion", meaning: "Product-market fit" },
+  { metric: "Renewal / expansion Desk → Group", meaning: "Sticky job-to-be-done" },
+  { metric: "Time-to-first-wow in demo", meaning: "Sales efficiency" },
+  { metric: "Support hours per seat", meaning: "Margin" },
+  { metric: "CAC vs first-year ACV", meaning: "Whether the wedge works" },
+];
 
 export function ContactSection() {
-  const { language } = useLanguage();
-  const t = translations[language].contact;
-
-  const contactSchema = z.object({
-    name: z.string().min(1, t.validation.name),
-    email: z.string().email(t.validation.email),
-    message: z.string().min(10, t.validation.message),
-  });
-
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitStatus, setSubmitStatus] = useState<string | null>(null);
 
@@ -40,10 +43,10 @@ export function ContactSection() {
 
   const onSubmit = (values: z.infer<typeof contactSchema>) => {
     setIsSubmitting(true);
-    setSubmitStatus(t.sending);
+    setSubmitStatus("Sending...");
     setTimeout(() => {
       setIsSubmitting(false);
-      setSubmitStatus(t.success);
+      setSubmitStatus("Your message has been sent successfully!");
       form.reset();
       setTimeout(() => setSubmitStatus(null), 5000);
     }, 1500);
@@ -54,17 +57,17 @@ export function ContactSection() {
       <div className="container mx-auto px-6">
         <div className="text-center mb-16">
           <h2 className="font-headline text-5xl md:text-6xl font-semibold text-white">
-            {t.title}
+            Talk to NADI
           </h2>
           <p className="mt-2 text-gray-300 max-w-2xl mx-auto">
-            {t.subtitle}
+            Want the scorecard applied to your desk? Send us a message.
           </p>
         </div>
         <div className="grid md:grid-cols-2 gap-12">
           <Card className="bg-secondary border-border p-2">
             <CardHeader>
               <CardTitle className="font-headline text-3xl text-white">
-                {t.formTitle}
+                Contact Form
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -78,7 +81,7 @@ export function ContactSection() {
                     name="name"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>{t.nameLabel}</FormLabel>
+                        <FormLabel>Name</FormLabel>
                         <FormControl>
                           <Input {...field} />
                         </FormControl>
@@ -91,7 +94,7 @@ export function ContactSection() {
                     name="email"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>{t.emailLabel}</FormLabel>
+                        <FormLabel>Work Email</FormLabel>
                         <FormControl>
                           <Input type="email" {...field} />
                         </FormControl>
@@ -104,7 +107,7 @@ export function ContactSection() {
                     name="message"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>{t.messageLabel}</FormLabel>
+                        <FormLabel>What are you measuring today?</FormLabel>
                         <FormControl>
                           <Textarea rows={4} {...field} />
                         </FormControl>
@@ -116,7 +119,7 @@ export function ContactSection() {
                     {isSubmitting && (
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                     )}
-                    {isSubmitting ? t.sending : t.submitButton}
+                    {isSubmitting ? "Sending..." : "Send Message"}
                   </Button>
                 </form>
               </Form>
@@ -128,23 +131,22 @@ export function ContactSection() {
             </CardContent>
           </Card>
           <div className="text-gray-200">
-            <h3 className="font-headline text-3xl text-white">{t.visitTitle}</h3>
-            <p className="mt-6 text-gray-300" style={{ whiteSpace: 'pre-line' }}>
-              {t.address}
+            <h3 className="font-headline text-3xl text-white">NADI&rsquo;s Own ROI</h3>
+            <p className="mt-4 text-gray-400 text-sm">
+              Separate from client ROI — how we measure ourselves as the
+              company selling this.
             </p>
-            <h4 className="font-bold mt-6 text-white">{t.hoursTitle}</h4>
-            <p className="text-gray-300" style={{ whiteSpace: 'pre-line' }}>
-              {t.hours}
+            <ul className="mt-6 space-y-4">
+              {sellerMetrics.map((row) => (
+                <li key={row.metric} className="flex items-baseline justify-between gap-4 border-b border-border pb-3">
+                  <span className="text-gray-200">{row.metric}</span>
+                  <span className="text-primary text-sm font-bold text-right">{row.meaning}</span>
+                </li>
+              ))}
+            </ul>
+            <p className="mt-6 text-gray-300 italic">
+              Early: one paid pilot that renews beats ten free demos.
             </p>
-            <div className="mt-6 w-full h-64 rounded-2xl overflow-hidden">
-              <iframe
-                title={t.mapPlaceholder}
-                className="w-full h-full border-0"
-                loading="lazy"
-                referrerPolicy="no-referrer-when-downgrade"
-                src={`https://maps.google.com/maps?q=${encodeURIComponent(t.address)}&output=embed`}
-              />
-            </div>
           </div>
         </div>
       </div>

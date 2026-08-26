@@ -1,31 +1,25 @@
 "use client";
 
-import { Award, Menu, X } from "lucide-react";
+import { Menu } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { Button } from "./ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "./ui/sheet";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
-import { useLanguage } from "@/context/language-context";
-import { translations } from "@/lib/translations";
-import { LanguageSwitcher } from "./language-switcher";
+
+const navLinks = [
+  { href: "#about", label: "About" },
+  { href: "#roi", label: "ROI Framework" },
+  { href: "#scorecard", label: "Scorecard" },
+  { href: "#contact", label: "Contact" },
+];
 
 export function SiteHeader() {
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const pathname = usePathname();
   const isHomePage = pathname === "/";
-  const { language } = useLanguage();
-  const t = translations[language].nav;
-
-  const navLinks = [
-    { href: "#about", label: t.about },
-    { href: "#membership", label: t.membership },
-    { href: "#gallery", label: t.gallery },
-    { href: "#contact", label: t.contact },
-    { href: "/training", label: t.trainingHub },
-  ];
 
   useEffect(() => {
     const handleScroll = () => {
@@ -71,7 +65,7 @@ export function SiteHeader() {
       <div className="container mx-auto px-6">
         <div className="flex items-center justify-between">
           <Link href="/" className="font-headline text-4xl font-bold text-white tracking-wider">
-            <span className="text-primary animate-pulse-slow">WAR</span><span className="text-accent">AC</span>
+            <span className="text-primary animate-pulse-slow">NA</span><span className="text-accent">DI</span>
           </Link>
           <nav className="hidden md:flex items-center space-x-8">
             {navLinks.map(link => (
@@ -79,13 +73,11 @@ export function SiteHeader() {
             ))}
           </nav>
           <div className="hidden md:flex items-center gap-2">
-            <LanguageSwitcher />
             <Button asChild className="font-bold rounded-lg transform hover:scale-105 transition-transform duration-300 text-sm">
-                <a href="#membership">{t.joinNow}</a>
+                <a href="#contact">Talk to Us</a>
             </Button>
           </div>
           <div className="md:hidden flex items-center gap-2">
-            <LanguageSwitcher />
             <Sheet open={isMobileMenuOpen} onOpenChange={setIsMobileMenuOpen}>
               <SheetTrigger asChild>
                 <Button variant="ghost" size="icon">
@@ -98,7 +90,7 @@ export function SiteHeader() {
                         <NavLink key={link.href} {...link} />
                     ))}
                      <Button asChild className="font-bold rounded-lg w-full text-center mt-2">
-                        <a href="#membership" onClick={() => setIsMobileMenuOpen(false)}>{t.joinNow}</a>
+                        <a href="#contact" onClick={() => setIsMobileMenuOpen(false)}>Talk to Us</a>
                     </Button>
                 </div>
               </SheetContent>

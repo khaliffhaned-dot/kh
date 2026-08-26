@@ -4,11 +4,11 @@ import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
 import { cn } from "@/lib/utils";
 import "./globals.css";
-import { LanguageProvider } from "@/context/language-context";
 
 export const metadata: Metadata = {
-  title: "WARAC Hub",
-  description: "Wise Aim Revolution Archery Club",
+  title: "NADI — ROI Framework",
+  description:
+    "NADI's return is measured as objectives met and incidents avoided under AMEC evaluation — not as advertising-equivalent ringgit.",
 };
 
 export default function RootLayout({
@@ -28,12 +28,10 @@ export default function RootLayout({
           "min-h-screen bg-background font-body antialiased"
         )}
       >
-        <LanguageProvider>
-          <SiteHeader />
-          <main className="flex-1">{children}</main>
-          <SiteFooter />
-          <Toaster />
-        </LanguageProvider>
+        <SiteHeader />
+        <main className="flex-1">{children}</main>
+        <SiteFooter />
+        <Toaster />
       </body>
     </html>
   );

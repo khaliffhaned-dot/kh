@@ -1,18 +1,16 @@
-"use client";
-
 import { AboutSection } from "@/components/landing/about";
 import { ContactSection } from "@/components/landing/contact";
-import { GallerySection } from "@/components/landing/gallery";
 import { HeroSection } from "@/components/landing/hero";
-import { MembershipSection } from "@/components/landing/membership";
+import { RoiLayersSection } from "@/components/landing/roi-layers";
+import { ScorecardSection } from "@/components/landing/scorecard";
 
 export default function Home() {
   return (
     <div className="flex flex-col min-h-dvh">
       <HeroSection />
       <AboutSection />
-      <MembershipSection />
-      <GallerySection />
+      <RoiLayersSection />
+      <ScorecardSection />
       <ContactSection />
     </div>
   );
