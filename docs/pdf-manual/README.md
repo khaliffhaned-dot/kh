@@ -2,6 +2,7 @@
 
 Builds the print manual and the A5 pocket cards from `../crisis-communications-playbook-malaysia-plc.md`.
 Style: consulting-report look in navy (#0A1F55) and saffron (#E9B84A), Arial, exhibits with source lines, line icons and charts.
+Red (#B3261E) is reserved for critical items: Level 4, immediate deadlines, warning callouts and verify tags.
 
 | Output | File |
 |---|---|

@@ -8,6 +8,7 @@ from matplotlib.patches import Patch
 from matplotlib.lines import Line2D
 
 NAVY, LIGHT, INK = "#0A1F55", "#6B82C2", "#1A1620"
+RED = "#B3261E"  # reserved for critical, immediate items
 c = ck.theme(bg="#FFFFFF", font="Liberation Sans")
 import pathlib
 OUT = str(pathlib.Path(__file__).parent) + "/"
@@ -27,7 +28,7 @@ for i, (lab, sub, bars, marks, notes) in enumerate(rows):
     for s, l, col in bars:
         ax.barh(y, l, left=s, height=0.34, color=col, zorder=3)
     for m in marks:
-        ax.plot(m, y, marker="D", ms=8, color=NAVY, zorder=4, clip_on=False)
+        ax.plot(m, y, marker="D", ms=8, color=RED, zorder=4, clip_on=False)
     for x, t, ha in notes:
         off = -0.36 if (bars and ha != "left" or (t.startswith("Report"))) else 0
         yy = y - 0.36 if t.startswith(("Report", "Supplement")) else y
@@ -41,7 +42,7 @@ ax.grid(axis="x", color=c.grid, zorder=0); ax.set_axisbelow(True)
 for s in ("top", "right", "left"): ax.spines[s].set_visible(False)
 ax.tick_params(axis="y", length=0, pad=12)
 ax.legend(handles=[Patch(color=NAVY, label="Initial notice or report"), Patch(color=LIGHT, label="Follow-up or written report"),
-                   Line2D([0],[0], marker="D", color="none", markerfacecolor=NAVY, markersize=7, label="Immediately")],
+                   Line2D([0],[0], marker="D", color="none", markerfacecolor=RED, markersize=7, label="Immediately")],
           loc="upper right", frameon=False, fontsize=9.5)
 ck.finish(ax, title="Initial notices fall due within three days; follow-ups run up to two weeks",
           subtitle="Latest compliant timing of each clock, assuming the PDPC is notified at the 72-hour limit",
@@ -60,7 +61,7 @@ m = len(steps)
 for i, (lab, v, col, t) in enumerate(steps):
     y = m - 1 - i
     if v == 0:
-        ax.plot(0, y, marker="D", ms=8, color=NAVY, zorder=4, clip_on=False)
+        ax.plot(0, y, marker="D", ms=8, color=RED, zorder=4, clip_on=False)
         ax.text(8, y, t, va="center", fontsize=9.5, color=INK)
     else:
         ax.barh(y, v, height=0.4, color=col, zorder=3)

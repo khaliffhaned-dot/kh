@@ -155,8 +155,16 @@ def main():
                 cls.append('specimen')
             else:
                 cls.append('note') if txt.startswith(('Reminder', 'How to read', 'Important')) else None
+            if txt.startswith(('Two-key rule', 'Why this matters', 'Why enforcement matters', 'Avoid:', 'Important.')):
+                cls = ['callout', 'crit']
             bq.name = 'div'; bq['class'] = cls
         for tb in sec.find_all('table'):
+            ths = tb.find_all('th')
+            l4 = next((i for i, th in enumerate(ths) if 'Level 4' in th.get_text()), None)
+            if l4 is not None:
+                for r in tb.find_all('tr'):
+                    cells = r.find_all(['th', 'td'])
+                    if len(cells) > l4: cells[l4]['class'] = cells[l4].get('class', []) + ['l4']
             if 'ctrl' in (tb.get('class') or []): continue
             ncol = len(tb.find('tr').find_all(['th', 'td'])) if tb.find('tr') else 0
             if ncol >= 5 and 'form' not in (tb.get('class') or []) and 'wsmeta' not in (tb.get('class') or []):
