@@ -1796,6 +1796,7 @@ The Company will make further announcements as appropriate.
 - **Participants:** Core Five, CMT, Board Chair or ARC Chair, IR, regional heads; observers from outside the CMT.
 - **Rules:** play in real roles; use real contact lists and templates; time-box decisions; the facilitator can pause the clock for learning.
 - **Evaluation:** score against the criteria in 17.5 and capture actions in the After-action review (T17).
+- **Interactive companion:** `docs/crisis-simulator/index.html` (First Sixty) runs three fully branching scenarios based on these exercises, with live regulatory clocks, scoring and a facilitated mode for groups, plus a short academy and the toolkit. It is fictional and carries the same verification limits as this playbook.
 
 ### 17.2 Exercise TX1 — "Friday, 6 pm: ransomware on results week"
 
