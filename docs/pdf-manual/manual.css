@@ -166,12 +166,38 @@ th { color: var(--brand); border-bottom: 1.2pt solid var(--brand); }
 .callout { border-left: 1.2mm solid var(--saff); border-radius: 0; }
 .callout.note { border-left-color: var(--brand); }
 .callout.specimen { border-left: 1.2mm solid var(--brand); }
-/* ---------- exhibits ---------- */
-figure.exhibit { margin: 3mm 0 5mm -26mm; width: 174mm; break-inside: avoid; }
+/* ---------- exhibits and action titles ---------- */
+p.strap { font: 700 12pt/1.38 Arial, 'Liberation Sans'; color: var(--ink); margin: -2mm 0 6.5mm; max-width: 138mm; }
+h3.scn + p.strap { font-size: 11.2pt; margin: -1mm 0 5mm; }
+figure.exhibit { margin: 4mm 0 6mm -26mm; width: 174mm; break-inside: avoid; }
 figure.exhibit .xn { font: 700 6.8pt Arial, 'Liberation Sans'; letter-spacing: .14em; text-transform: uppercase; color: var(--brand); }
-figure.exhibit .xt { font: 700 10.4pt/1.3 Arial, 'Liberation Sans'; margin: 1mm 0 2mm; color: var(--ink); }
-figure.exhibit img { width: 174mm; display: block; border-top: .8pt solid var(--brand); border-bottom: .5pt solid var(--line); }
+figure.exhibit .xt { font: 700 11pt/1.3 Arial, 'Liberation Sans'; margin: 1mm 0 .6mm; color: var(--ink); }
+figure.exhibit .xs { font: 400 7.6pt/1.4 Arial, 'Liberation Sans'; color: var(--ink2); margin-bottom: 2mm; }
+figure.exhibit .xb { border-top: .9pt solid var(--brand); border-bottom: .5pt solid var(--line); padding: 3mm 0; }
+figure.exhibit .xb img, figure.exhibit .xb svg { width: 174mm; display: block; }
 figure.exhibit figcaption { font: 400 6.8pt/1.45 Arial, 'Liberation Sans'; color: var(--ink2); margin: 1.4mm 0 0; }
+
+/* ---------- executive summary ---------- */
+section.exec { break-after: page; padding-top: 4mm; }
+.exec .es-eyebrow { font: 700 7pt Arial, 'Liberation Sans'; letter-spacing: .18em; text-transform: uppercase; color: var(--brand); }
+.exec .es-title { font: 700 19pt/1.16 Arial, 'Liberation Sans'; color: var(--brand); margin: 3mm 0 0; letter-spacing: -.01em; }
+.exec .es-rule { width: 14mm; height: 1mm; background: var(--saff); margin: 3.4mm 0 4mm; }
+.exec .es-lead { font: 400 9.4pt/1.5 Arial, 'Liberation Sans'; margin: 0 0 5mm; color: var(--ink); }
+.es-row { display: grid; grid-template-columns: 7mm 8mm 1fr; column-gap: 2mm; padding: 3.1mm 0; border-top: .6pt solid var(--line); break-inside: avoid; }
+.es-row:last-child { border-bottom: .6pt solid var(--line); }
+.es-n { font: 700 14pt Arial, 'Liberation Sans'; color: var(--saff); line-height: 1; padding-top: .6mm; }
+.es-i { padding-top: .6mm; }
+.es-h { font: 700 10.4pt Arial, 'Liberation Sans'; color: var(--brand); margin-bottom: .8mm; }
+.es-t p { margin: 0; font-size: 8.6pt; line-height: 1.45; }
+a.pg { color: var(--brand); font-weight: 700; white-space: nowrap; }
+a.pg::after { content: "(p. " target-counter(attr(href), page) ")"; }
+.es-stats { display: flex; gap: 0; margin: 5mm 0 4mm; background: var(--brand); color: #fff; }
+.es-stats div { flex: 1; padding: 3mm 3mm 2.6mm; border-right: .6pt solid #2F4585; }
+.es-stats div:last-child { border-right: 0; }
+.es-stats b { display: block; font: 700 17pt Arial, 'Liberation Sans'; color: var(--saff); line-height: 1.1; }
+.es-stats span { font: 400 6.6pt Arial, 'Liberation Sans'; letter-spacing: .06em; text-transform: uppercase; color: #C3CDEB; }
+.es-warn { display: flex; gap: 3mm; background: var(--crit-tint); border-left: 1.2mm solid var(--crit); padding: 3mm 3.6mm; font-size: 8.2pt; line-height: 1.45; }
+.es-warn svg { flex: none; margin-top: .4mm; }
 
 /* ---------- red = critical ---------- */
 :root { --crit: #B3261E; --crit-tint: #FBECEA; }

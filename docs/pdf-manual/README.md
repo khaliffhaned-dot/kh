@@ -2,11 +2,12 @@
 
 Builds the print manual and the A5 pocket cards from `../crisis-communications-playbook-malaysia-plc.md`.
 Style: consulting-report look in navy (#0A1F55) and saffron (#E9B84A), Arial, exhibits with source lines, line icons and charts.
+The consulting layer lives in `consulting.py`: an executive summary page after the cover, an action title (a one-sentence so-what) under every section and scenario, and five numbered exhibits with source lines. Nothing in it adds a fact; every line restates the playbook.
 Red (#B3261E) is reserved for critical items: Level 4, immediate deadlines, warning callouts and verify tags.
 
 | Output | File |
 |---|---|
-| Full manual, A4, about 96 pages: cover with logo slot, document control, contents with page numbers, part dividers, diagrams, exhibits, scenarios, templates, Appendix F worksheets W1 to W6 | `Crisis-Communications-Playbook-Manual.pdf` |
+| Full manual, A4, about 102 pages: cover with logo slot, document control, contents with page numbers, part dividers, diagrams, exhibits, scenarios, templates, Appendix F worksheets W1 to W6 | `Crisis-Communications-Playbook-Manual.pdf` |
 | Pocket cards, A5, 10 cards, printable and cut-ready | `Crisis-Communications-Playbook-Pocket-Cards.pdf` |
 
 ## Rebuild

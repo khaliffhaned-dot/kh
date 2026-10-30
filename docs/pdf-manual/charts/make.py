@@ -44,9 +44,7 @@ ax.tick_params(axis="y", length=0, pad=12)
 ax.legend(handles=[Patch(color=NAVY, label="Initial notice or report"), Patch(color=LIGHT, label="Follow-up or written report"),
                    Line2D([0],[0], marker="D", color="none", markerfacecolor=RED, markersize=7, label="Immediately")],
           loc="upper right", frameon=False, fontsize=9.5)
-ck.finish(ax, title="Initial notices fall due within three days; follow-ups run up to two weeks",
-          subtitle="Latest compliant timing of each clock, assuming the PDPC is notified at the 72-hour limit",
-          source="Source: Crisis Communications Playbook, Sections 2.3 and 5 (secondary sources; verify with counsel)")
+ck.finish(ax)  # title, scope and source line are set by the manual (exhibit frame), not drawn here
 print(ck.save(fig, OUT + "clock-windows", formats=("png", "svg")))
 
 # ---- Chart 2: escalation clocks (minutes) ----
@@ -74,7 +72,5 @@ ax.grid(axis="x", color=c.grid, zorder=0); ax.set_axisbelow(True)
 for s in ("top", "right", "left"): ax.spines[s].set_visible(False)
 ax.tick_params(axis="y", length=0, pad=12)
 ax.legend(handles=[Patch(color=NAVY, label="Level 3"), Patch(color=LIGHT, label="Level 4 only")], loc="upper right", frameon=False, fontsize=9.5)
-ck.finish(ax, title="Three decisions are due inside the first hour; the full Board within four",
-          subtitle="Default escalation clocks for a Level 3 crisis (calibrate to your company)",
-          source="Source: Crisis Communications Playbook, Sections 7.2 to 7.4")
+ck.finish(ax)
 print(ck.save(fig, OUT + "escalation", formats=("png", "svg")))

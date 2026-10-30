@@ -13,6 +13,7 @@ from bs4 import BeautifulSoup
 from weasyprint import HTML
 sys.path.insert(0, str(pathlib.Path(__file__).parent))
 import diagrams
+import consulting
 from worksheets import worksheets_html
 
 HERE = pathlib.Path(__file__).parent.resolve()
@@ -118,14 +119,20 @@ def main():
         p['letter'], p['name'], p['id'] = letter, name, pid
         h2s = []
         for el in p['els']:
+            strap_text = None
             if el.name in ('h2', 'h3', 'h4'):
                 el_num, el_title = prep_heading(el)
                 if el.name == 'h2':
                     h2s.append((el.get('id'), el_num, el_title))
                     toc_entries.append(('h2', el.get('id'), el_num, el_title, pid))
+                    strap_text = consulting.SECTION_ACTIONS.get(el_num)
                 elif el.name == 'h3' and el_num and re.match(r'^[ST]\d+$', el_num):
                     toc_entries.append(('h3', el.get('id'), el_num, el_title, pid))
+                    strap_text = consulting.SCENARIO_ACTIONS.get(el_num)
             sec.append(el)
+            if strap_text:  # the action title: the section's so-what, as a full sentence
+                strap = soup.new_tag('p', attrs={'class': 'strap'}); strap.string = strap_text
+                sec.append(strap)
         p['h2s'] = h2s; p['sec'] = sec; parts_out.append(p)
 
     # ---- appendix F: worksheets (added to the last part) ----
@@ -184,18 +191,30 @@ def main():
                 fig = BeautifulSoup(f'<figure class="diagram">{diagrams.governance()}<figcaption>Figure · Crisis governance structure (Section 6.1)</figcaption></figure>', 'lxml').body.figure
                 pre.replace_with(fig)
 
-    # exhibits (charts built with chartkit, see charts/make.py)
-    def exhibit(n, title, img, note):
-        return BeautifulSoup(f'<figure class="exhibit"><div class="xn">Exhibit {n}</div><div class="xt">{title}</div><img src="{(HERE / "charts" / img).as_uri()}"><figcaption>{note}</figcaption></figure>', 'lxml').body.figure
+    # exhibits: numbered in document order, each with an action title and a source line
+    ex_count = [0]
+
+    def exhibit(key, body):
+        ex_count[0] += 1
+        title, scope, src = consulting.EXHIBITS[key]
+        html = (f'<figure class="exhibit"><div class="xn">Exhibit {ex_count[0]}</div><div class="xt">{title}</div>'
+                f'<div class="xs">{scope}</div><div class="xb">{body}</div><figcaption>Source: {src}</figcaption></figure>')
+        return BeautifulSoup(html, 'lxml').body.figure
+
+    def chart(name): return f'<img src="{(HERE / "charts" / name).as_uri()}">'
+    EXHIBIT_AT = {'2.3': ('clock', lambda: chart('clock-windows.png')),
+                  '7.2': ('severity', consulting.severity_levels),
+                  '7.4': ('escalation', lambda: chart('escalation.png')),
+                  '9.1': ('bursa', consulting.bursa_first),
+                  '19.2': ('rebuild', consulting.rebuild_plan)}
     for sec in allsec:
         for h in sec.find_all('h3'):
-            t = ' '.join(h.get_text().split())
-            if t.startswith('2.3'):
+            m_ = re.match(r'^(\d+\.\d+)', ' '.join(h.get_text().split()))
+            num = m_.group(1) if m_ else None
+            if num in EXHIBIT_AT:
+                key, make = EXHIBIT_AT[num]
                 nxt = h.find_next_sibling(['h2', 'h3'])
-                (nxt.insert_before if nxt else sec.append)(exhibit(1, 'Latest compliant timing of each regulatory clock, in days from discovery', 'clock-windows.png', 'Indicative. Secondary sources only; verify with counsel. Source: this playbook, Sections 2.3 and 5.'))
-            if t.startswith('7.4'):
-                nxt = h.find_next_sibling(['h2', 'h3'])
-                (nxt.insert_before if nxt else sec.append)(exhibit(2, 'Default escalation clocks for a Level 3 crisis, from first awareness', 'escalation.png', 'Defaults to calibrate to your company and have the Board approve. Source: this playbook, Sections 7.2 to 7.4.'))
+                (nxt.insert_before if nxt else sec.append)(exhibit(key, make()))
 
     # Appendix C: show the domain under each link (paper readers cannot click)
     c1 = app['sec'].find(lambda t: t.name == 'h3' and t.get_text().strip().startswith('C.1'))
@@ -209,6 +228,7 @@ def main():
     # ---- contents ----
     def esc(s): return s.replace('&', '&amp;')
     toc = ['<section class="toc"><h2 class="front pg" id="contents">Contents</h2><ol>']
+    toc.append('<li class="te"><a href="#exec-summary"><span class="n"></span>Executive summary</a></li>')
     cur_part = None
     for p in parts_out:
         toc.append(f'<li class="tp"><a href="#{p["id"]}"><span class="l">{p["letter"] if len(p["letter"]) == 1 else "+"}</span>{"Part " + p["letter"] + " · " if len(p["letter"]) == 1 else ""}{esc(p["name"])}</a></li>')
@@ -246,7 +266,9 @@ def main():
              f'<tr><td>Status of legal content</td><td>Not verified against official Bursa Malaysia text. See “Read this first”.</td></tr></table></section>')
 
     # ---- assemble ----
-    body_html = cover + str(front_html) + toc_html
+    sec_id = {num: hid for kind, hid, num, title, pid in toc_entries if kind == 'h2' and num}
+    exec_html = consulting.executive_summary(lambda num: '#' + sec_id[num])
+    body_html = cover + exec_html + str(front_html) + toc_html
     for p in parts_out:
         body_html += divider(p) + str(p['sec'])
     body_html = tagify(body_html)
