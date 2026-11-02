@@ -4,10 +4,16 @@ import { useLanguage } from "@/context/language-context";
 import { translations } from "@/lib/translations";
 import { Facebook, Instagram, Twitter } from "lucide-react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 
 export function SiteFooter() {
   const { language } = useLanguage();
   const t = translations[language].footer;
+  const pathname = usePathname();
+
+  if (pathname?.startsWith("/semak")) {
+    return null;
+  }
 
   return (
     <footer className="bg-card py-12">
